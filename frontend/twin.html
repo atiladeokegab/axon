@@ -1415,6 +1415,12 @@
     // degenerate. Static, so it costs nothing in stability; drag still overrides.
     const DEFAULT_VIEW_YAW = -0.62;
     presentationRig.rotation.y = DEFAULT_VIEW_YAW;
+
+    // Declared here rather than beside the pointer handlers further down:
+    // highlightPad() writes pointerTargetX to turn the model toward the pad
+    // being placed, and a `let` still in its temporal dead zone would throw.
+    let pointerTargetX = DEFAULT_VIEW_YAW;
+    let pointerTargetY = 0;
     scene.add(presentationRig);
 
     const armRoot = new THREE.Object3D();
@@ -2307,13 +2313,27 @@
     // millimetre coordinates hundreds of units away, which quietly blew up the
     // scene's bounds and pinned the auto-framing at its widest. Bone-relative
     // placement is in scene units throughout, so there is nothing to convert.
+    // `view` is the yaw the model turns to while this pad is being placed, so a
+    // pad on the back of the arm is not being described to someone looking at
+    // the front of it. Front pads keep the default three-quarter angle; rear
+    // pads swing round behind.
     const PAD_PLACEMENT = {
-      BICEP:      { segment: "upperArm", along: 0.55, face: +1 },
-      TRICEP:     { segment: "upperArm", along: 0.55, face: -1 },
-      FRONT_DELT: { segment: "upperArm", along: 0.14, face: +1 },
-      REAR_DELT:  { segment: "upperArm", along: 0.14, face: -1 },
-      WRIST_FLEX: { segment: "forearm",  along: 0.72, face: +1 },
-      WRIST_EXTEND: { segment: "forearm", along: 0.72, face: -1 },
+      BICEP:      { segment: "upperArm", along: 0.55, face: +1, view: -0.5 },
+      TRICEP:     { segment: "upperArm", along: 0.55, face: -1, view: 2.5 },
+      FRONT_DELT: { segment: "upperArm", along: 0.14, face: +1, view: -0.5 },
+      REAR_DELT:  { segment: "upperArm", along: 0.14, face: -1, view: 2.5 },
+      WRIST_FLEX: { segment: "forearm",  along: 0.72, face: +1, view: -0.5 },
+      WRIST_EXTEND: { segment: "forearm", along: 0.72, face: -1, view: 2.5 },
+    };
+
+    // A still, open pose held while pads are being placed. Live tracking is
+    // deliberately ignored here: someone reaching across to stick an electrode
+    // on their own arm makes the tracked model lurch about, which is the
+    // opposite of a reference to place against. Slightly bent and held away
+    // from the body so upper arm and forearm are both clearly visible.
+    const REFERENCE_POSE = {
+      elbow: new THREE.Vector3(0.42, -1.18, 0.12),
+      wrist: new THREE.Vector3(0.72, -2.18, 0.42),
     };
 
     function makePadMaterial() {
@@ -2368,6 +2388,11 @@
 
     // null = leave them all plain; a pad name = spotlight that one for setup.
     function highlightPad(pad) {
+      // Drives the same value the orbit drag writes to, so the turn is eased by
+      // the existing view smoothing rather than snapping.
+      const view = pad === null ? null : PAD_PLACEMENT[pad]?.view;
+      if (view !== null && view !== undefined) pointerTargetX = view;
+
       for (const [name, marker] of padMarkers) {
         const isFocus = pad === null || name === pad;
         marker.material.color.set(isFocus && pad !== null ? 0x87f7c7 : 0x8ea19a);
@@ -2708,6 +2733,13 @@
       enterStep(flow.step - 1);
     });
 
+    // Held while choosing an arm and placing pads. Returns null once a session
+    // starts, at which point the model goes back to following the real arm.
+    function referencePose() {
+      const step = stepName();
+      return (step === "arm" || step === "pads") ? REFERENCE_POSE : null;
+    }
+
     // Demo pose for the current moment, or null when not demonstrating. Returns
     // twin-space positions so the same rig that renders live pose renders this.
     function demoPose() {
@@ -2832,6 +2864,13 @@
     }
 
     function showPrompt(status) {
+      // Nothing to say about framing while someone is sticking electrodes to
+      // their own arm — of course it is out of shot. Only ask for the arm back
+      // once the model actually needs to follow it.
+      if (referencePose()) {
+        prompt.hidden = true;
+        return;
+      }
       const text = promptTextFor(status);
       promptText.textContent = text;
       // Spoken as well as shown: the person this prompt is for is mid-movement,
@@ -3024,8 +3063,6 @@
       }
     }, 250);
 
-    let pointerTargetX = DEFAULT_VIEW_YAW;
-    let pointerTargetY = 0;
     let dragging = false;
     let previousPointerX = 0;
     let previousPointerY = 0;
@@ -3041,7 +3078,9 @@
       if (!dragging) return;
       pointerTargetX += (event.clientX - previousPointerX) * 0.006;
       pointerTargetY += (event.clientY - previousPointerY) * 0.003;
-      pointerTargetX = THREE.MathUtils.clamp(pointerTargetX, -0.9, 0.7);
+      // Full turn: rear pads sit behind the arm, and the user should be able to
+      // reach the same angles by hand that the pad walkthrough moves to.
+      pointerTargetX = THREE.MathUtils.clamp(pointerTargetX, -Math.PI, Math.PI);
       pointerTargetY = THREE.MathUtils.clamp(pointerTargetY, -0.28, 0.28);
       previousPointerX = event.clientX;
       previousPointerY = event.clientY;
@@ -3076,17 +3115,18 @@
       const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA_S);
       const elapsed = clock.elapsedTime;
 
-      // A demonstration drives the rig directly, overriding live pose: the
-      // model is showing the movement rather than mirroring one.
-      const demo = demoPose();
-      if (demo) {
-        smoothedElbow.copy(demo.elbow);
-        smoothedWrist.copy(demo.wrist);
-        applyArmPose(smoothedElbow, smoothedWrist);
-      } else if (hasPoseTarget) {
+      // What the model should be doing right now, in priority order: holding
+      // the reference pose for pad placement, demonstrating a movement, or
+      // mirroring the live arm. Everything eases through the same smoothing, so
+      // switching between them is a glide rather than a jump.
+      const scripted = referencePose() || demoPose();
+      const goalElbow = scripted ? scripted.elbow : targetElbow;
+      const goalWrist = scripted ? scripted.wrist : targetWrist;
+
+      if (scripted || hasPoseTarget) {
         const poseK = 1 - Math.exp(-POSE_SMOOTHING_RATE * delta);
-        smoothedElbow.lerp(targetElbow, poseK);
-        smoothedWrist.lerp(targetWrist, poseK);
+        smoothedElbow.lerp(goalElbow, poseK);
+        smoothedWrist.lerp(goalWrist, poseK);
         applyArmPose(smoothedElbow, smoothedWrist);
       }
       updateSession(smoothedElbow, smoothedWrist);
