@@ -68,10 +68,21 @@ def test_viewport_prompt_exists_but_starts_hidden():
 
 
 def test_camera_preview_uses_backend_stream_not_a_second_browser_camera():
+    """
+    The preview must come from the backend's own capture, so the browser never
+    opens a second handle to the physical camera — only one process can hold it.
+
+    Microphone access is a separate matter and is allowed: the conversational
+    coach needs it, and it does not contend for the camera. So this checks for
+    *video* capture specifically rather than banning getUserMedia outright,
+    which is what it used to do.
+    """
     assert '<img id="camera-feed"' in TWIN_HTML
     assert "/camera.mjpeg" in TWIN_HTML
-    assert "getUserMedia" not in TWIN_HTML
     assert "srcObject" not in TWIN_HTML
+
+    for call in re.findall(r"getUserMedia\(\s*\{(.*?)\}\s*\)", TWIN_HTML, re.S):
+        assert "video" not in call, f"browser is opening a second camera: getUserMedia({{{call}}})"
 
 
 def _manifest_ids_by_side() -> dict[str, dict[str, list[str]]]:

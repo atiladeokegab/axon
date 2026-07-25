@@ -510,6 +510,7 @@
         <div class="audio-controls" role="group" aria-label="Audio coaching">
           <button type="button" class="side-option" id="voice-toggle" aria-pressed="false">Voice</button>
           <button type="button" class="side-option" id="metronome-toggle" aria-pressed="false">Pace</button>
+          <button type="button" class="side-option" id="agent-toggle" aria-pressed="false" title="Talk to the coach">Talk</button>
           <label class="tempo" for="tempo">
             <input type="range" id="tempo" min="30" max="100" step="5" value="60" aria-label="Pace, beats per minute">
             <span id="tempo-readout">60</span>
@@ -1656,6 +1657,9 @@
     const voiceCache = new Map();
     let lastCueKey = null;
     let lastCueAt = 0;
+    // Set by the agent's mode changes. Declared here because speak() reads it
+    // and runs long before the agent block below is evaluated.
+    let agentSpeaking = false;
 
     const voiceToggle = document.querySelector("#voice-toggle");
     const metronomeToggle = document.querySelector("#metronome-toggle");
@@ -1688,6 +1692,9 @@
     function speak(key, options) {
       const settings = options || {};
       if (!voiceEnabled || !key) return;
+      // The agent has the floor. Talking over it would produce two voices
+      // giving the same person different instructions.
+      if (agentSpeaking) return;
 
       const now = performance.now();
       if (!settings.force && key === lastCueKey && now - lastCueAt < CUE_REPEAT_MS) return;
@@ -1941,6 +1948,161 @@
       padsVisible = visible;
       for (const marker of padMarkers.values()) marker.visible = visible;
     }
+
+
+    // --- Conversational coach ------------------------------------------------
+    //
+    // Lets the patient talk instead of clicking, which matters more here than
+    // it sounds: the hand they would click with may be the impaired one.
+    //
+    // The agent drives the app through client tools rather than just chatting,
+    // so "let's do some bicep curls" actually starts the exercise. Everything
+    // it can do is enumerated below — it has no other reach into the page.
+    //
+    // Deliberately NOT the emergency stop. A spoken stop travels over a network
+    // round trip and can be misheard; the on-screen Stop button stays the
+    // guaranteed one. See docs/VOICE_AGENT.md for the dashboard setup.
+
+    // Passed as ?agent=<id> so it can be pointed at a different agent without
+    // editing the page. Empty means the feature is simply unavailable.
+    const AGENT_ID = new URLSearchParams(window.location.search).get("agent") || "";
+
+    const agentToggle = document.querySelector("#agent-toggle");
+    let conversation = null;
+    let agentBusy = false;
+
+    // Everything the agent is allowed to do. Each returns a short string, which
+    // is what the agent hears back — it is how it knows whether the thing it
+    // asked for actually happened.
+    function agentTools() {
+      return {
+        set_arm: async ({ side }) => {
+          const wanted = String(side || "").toLowerCase();
+          if (wanted !== "left" && wanted !== "right") return "Not a valid arm.";
+          flow.arm = wanted;
+          applySideSelection(wanted);
+          paintFlow();
+          return `Set to the ${wanted} arm.`;
+        },
+
+        next_step: async () => {
+          if (flowNext.disabled) return "Not ready to move on yet.";
+          flowNext.click();
+          return `Moved on. Now on: ${stepName()}.`;
+        },
+
+        go_back: async () => {
+          if (flowBack.hidden) return "Already at the first step.";
+          flowBack.click();
+          return `Went back. Now on: ${stepName()}.`;
+        },
+
+        start_exercise: async ({ exercise }) => {
+          const wanted = String(exercise || "").toLowerCase();
+          const match = EXERCISES.find((e) =>
+            e.id === wanted
+            || e.name.toLowerCase() === wanted
+            || e.name.toLowerCase().includes(wanted)
+            || e.muscle.toLowerCase().includes(wanted));
+          if (!match) {
+            return `No such exercise. Available: ${EXERCISES.map((e) => e.name).join(", ")}.`;
+          }
+          flow.exercise = match;
+          enterStep(FLOW_STEPS.indexOf("session"));
+          startSession(match);
+          paintFlow();
+          return `Started ${match.name}, ${match.reps} reps.`;
+        },
+
+        stop_session: async () => {
+          stopSession();
+          return "Stopped.";
+        },
+
+        // Without this the agent is talking blind — it would be guessing at
+        // which step the person is on and how far through a set they are.
+        get_status: async () => {
+          const bits = [`Step: ${stepName()}`, `Arm: ${flow.arm ?? "not chosen"}`];
+          if (stepName() === "pads") {
+            bits.push(`Placing pad ${flow.padIndex + 1} of ${PAD_ORDER.length}: ${PAD_LABEL[PAD_ORDER[flow.padIndex]]}`);
+          }
+          if (session) {
+            bits.push(`Exercise: ${session.exercise.name}`);
+            bits.push(`Reps: ${session.reps} of ${session.exercise.reps}`);
+            bits.push(session.exercise.verified
+              ? "Reps are measured from the camera."
+              : "Reps are timed, not measured — no finger tracking.");
+          }
+          bits.push(trackingPill.classList.contains("is-live")
+            ? "The arm is being tracked."
+            : "The arm is not currently visible to the camera.");
+          return bits.join(". ");
+        },
+      };
+    }
+
+    function setAgentState(on, label) {
+      agentToggle.classList.toggle("is-selected", on);
+      agentToggle.setAttribute("aria-pressed", String(on));
+      agentToggle.textContent = label ?? (on ? "Listening" : "Talk");
+    }
+
+    async function startAgent() {
+      if (!AGENT_ID) {
+        console.warn("[twin] no agent id — open with ?agent=<agent_id>. See docs/VOICE_AGENT.md");
+        setAgentState(false, "No agent");
+        return;
+      }
+      agentBusy = true;
+      setAgentState(false, "Connecting…");
+      try {
+        // Asked for explicitly rather than on page load: a page that grabs the
+        // microphone unprompted is not one people trust.
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        const { Conversation } = await import("https://cdn.jsdelivr.net/npm/@elevenlabs/client@latest/+esm");
+        conversation = await Conversation.startSession({
+          agentId: AGENT_ID,
+          clientTools: agentTools(),
+          onConnect: () => setAgentState(true, "Listening"),
+          onDisconnect: () => { conversation = null; setAgentState(false); },
+          onError: (err) => {
+            console.error("[twin] agent error", err);
+            conversation = null;
+            setAgentState(false, "Talk");
+          },
+          // Two voices talking over each other is worse than one: the
+          // pre-rendered cues stand down while the agent has something to say.
+          onModeChange: ({ mode }) => {
+            agentSpeaking = mode === "speaking";
+            setAgentState(true, mode === "speaking" ? "Speaking" : "Listening");
+          },
+        });
+      } catch (err) {
+        console.error("[twin] could not start the agent", err);
+        conversation = null;
+        setAgentState(false, "Mic blocked");
+      } finally {
+        agentBusy = false;
+      }
+    }
+
+    async function stopAgent() {
+      const session = conversation;
+      conversation = null;
+      agentSpeaking = false;
+      setAgentState(false);
+      if (session) await session.endSession().catch(() => {});
+    }
+
+    agentToggle.addEventListener("click", () => {
+      if (agentBusy) return;
+      if (conversation) stopAgent(); else startAgent();
+    });
+
+    if (!AGENT_ID) agentToggle.disabled = true;
+
+    window.addEventListener("pagehide", () => { stopAgent(); });
 
     // --- Guided exercise sessions -------------------------------------------
     //
