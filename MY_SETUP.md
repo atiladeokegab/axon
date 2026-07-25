@@ -65,6 +65,12 @@ pressed at power-on (or a lead that falls off mid-run) is caught too.
 > transistor/MOSFET plus a flyback diode across the coil — it is a few parts,
 > and the failure mode is a dead GPIO mid-demo.
 
+**Relay trigger polarity — verify, do not assume.** Our modules energise on
+**HIGH**, so `CHANNEL_ACTIVE_LOW = False` in `firmware/config/pins.py`. The idle
+state must leave the relay **released** (COM–NC, dummy resistor). If idle
+energises the relay, COM–NO closes and the **subject** becomes the load at boot
+and after every safety cutout. Meter COM–NO at boot: it must read open.
+
 ### Power
 
 - Relay module `VCC` → **5 V supply** (not the ESP32's 3.3 V — coils need ~70–90 mA each).
@@ -215,6 +221,20 @@ Channels: 1 biceps · 2 triceps · 3 ant.deltoid · 4 post.deltoid ·
 
 ## 5. Run the demo
 
+**One command — vision + control together:**
+
+```powershell
+cd C:\Users\faisa\Desktop\juno_hack
+python tools\launch.py --no-board                     # dry run, nothing stimulated
+python tools\launch.py --host 192.168.137.154         # full system
+```
+
+It starts axon-main's pose service, waits for it, hands the terminal to the
+controller (so the arrow keys work), and stops the pose service when you quit.
+First run is slow — uv downloads mediapipe. Add `--verbose` to watch it.
+
+**Or the pieces separately:**
+
 ```powershell
 cd controller
 python run.py --sim                                  # virtual arm, no hardware
@@ -242,7 +262,7 @@ cd controller
 python test_simulation.py
 ```
 
-Expect `74 checks, 0 failed`.
+Expect `79 checks, 0 failed`.
 
 ---
 

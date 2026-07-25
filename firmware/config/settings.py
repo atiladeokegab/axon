@@ -9,7 +9,7 @@
 # every status heartbeat, so "is the board actually running my new code?" is a
 # one-second question instead of a guess. Deploys that silently fail, or a
 # reboot that never happened, are otherwise invisible.
-FIRMWARE_VERSION = "2026-07-25.7-review-fixes"
+FIRMWARE_VERSION = "2026-07-25.8-relay-polarity"
 
 # ---- Software PWM ---------------------------------------------------------
 # Mechanical relays: ~10 ms close / ~5 ms open, clean repeatable ~20-30 ms.

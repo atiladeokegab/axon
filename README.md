@@ -58,6 +58,7 @@ are malformed, or ask for too much, it clamps them or opens every relay.
 | `firmware/lib/stim_array.py` | The 8 channels + auto-off keep-alive |
 | `firmware/lib/safety.py` | Arm/disarm, watchdog, duty clamping |
 | `firmware/lib/wifi_manager.py` | Station-mode Wi-Fi + WebREPL |
+| `tools/launch.py` | **One command: pose service + controller** |
 | `tools/deploy_wifi.py` | Wireless firmware deploy (no USB) |
 | `tools/bench.py` | Interactive channel tester for hardware bring-up |
 | `tools/calibrate.py` | Per-subject recruitment-curve sweep |
@@ -145,7 +146,7 @@ line and confirm the prompt shows `(.venv)`.
 
 ```bash
 cd controller
-python test_simulation.py     # 74 offline checks
+python test_simulation.py     # 79 offline checks
 python run.py --sim           # virtual arm, drive it with the arrow keys
 ```
 
@@ -226,22 +227,34 @@ Boot state is **disarmed**. Nothing stimulates until you press `A`.
 ### Reading the status line
 
 ```
-[ARMED   ] pose:SIM | elbow act  33.4 tgt  45.0 | flex act 31.3 tgt 45.0 | ... | stim: CH1:0.27 CH3:0.25
+[ARM] bd:ok pose:OK e45/60 f10/30 a0/15 g:- CH1:0.70 CH3:0.48
 ```
 
-- **`act`** — where the arm *actually* is, from the pose estimator.
-- **`tgt`** — where you have *commanded* it to go (arrow keys move this).
-- **`stim`** — which channels are firing, and at what duty. `idle` = nothing on.
+Compact so it fits any terminal width; on a narrow window the least useful
+fields drop first, so state and board flags stay visible.
 
-The controller stimulates until `act` catches up with `tgt`.
+| Field | Meaning |
+|---|---|
+| `[ARM]` / `[DIS]` / `[KIL]` | armed / disarmed / e-stopped |
+| `bd:ok` | what the **board** reports about itself (see below) |
+| `pose:OK` / `pose:STALE` / `SIM` | pose estimator feed |
+| `e45/60` | elbow: **actual 45°, target 60°** (`f` = shoulder flex, `a` = abduction) |
+| `g:C` / `g:-` | grip closed / open |
+| `CH1:0.70` | channels firing and duty. `idle` = nothing stimulating |
 
-**If nothing moves,** the state flag tells you why, and the line spells it out:
+The controller stimulates until **actual** catches up to **target**; arrow keys
+move the target.
+
+**If nothing moves,** the state and `bd:` flags say why:
 
 | Shows | Meaning |
 |---|---|
-| `[DISARMED] ... <- press A to arm` | Targets move, but stimulation is off. |
-| `[KILLED  ] ... <- press A to re-arm` | E-stop is latched. |
-| `pose:STALE ... <- NO POSE DATA` | No pose estimator running. Use `--sim` for a virtual arm. |
+| `[DIS]` | not armed — press `A` |
+| `[KIL]` | e-stop latched — press `A` to re-arm |
+| `pose:STALE` | no pose data. Use `--sim` for a virtual arm |
+| `bd:LOST3s` | no heartbeat — Wi-Fi dropped or board off |
+| `bd:REBOOTED` | the board restarted — press `A` to re-arm |
+| `bd:NO-REPLY` | never heard from it — wrong IP or firewall |
 
 Two more reasons a key can look dead — both are announced on screen:
 
@@ -287,6 +300,7 @@ for electrode placement.
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — Wi-Fi setup, wireless deploy, 5 V power
 - [`docs/WIRING.md`](docs/WIRING.md) — relays, dummy load, jolt fix, electrodes
 - [`docs/POSE_API.md`](docs/POSE_API.md) — the contract for the pose estimator
+- [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — wiring up axon-main's vision feed
 - [`docs/CONTROL.md`](docs/CONTROL.md) — why PI, tuning, loop timing
 - [`docs/TESTING.md`](docs/TESTING.md) — bring-up order, bench checks
 

@@ -78,11 +78,33 @@ TIMER_KEEPALIVE_PIN = 2
 ESTOP_PIN = 8
 
 # --- Driver polarity -------------------------------------------------------
-# Both relay modules are LOW-level-trigger: GPIO LOW energises the relay.
-# Their onboard input pull-ups hold every relay OFF while the ESP32 pins float
-# at power-up -> fail-safe by construction, which is exactly what we want.
-CHANNEL_ACTIVE_LOW = True
-TIMER_ACTIVE_LOW = True
+# CRITICAL SAFETY SETTING. Get this wrong and the de-asserted ("safe") state
+# energises the relay instead of releasing it.
+#
+# The relay is wired COM -> NO = electrodes on the SUBJECT, COM -> NC = the
+# ~1k dummy resistor (see docs/WIRING.md). A de-energised relay rests on NC.
+# So the safe, idle state must be a relay that is NOT energised.
+#
+#   CHANNEL_ACTIVE_LOW = False  ->  idle drives GPIO LOW  (relay released, NC,
+#                                    current through the resistor)   <-- OURS
+#   CHANNEL_ACTIVE_LOW = True   ->  idle drives GPIO HIGH
+#
+# Our modules are HIGH-level trigger: GPIO HIGH energises. With ACTIVE_LOW=True
+# the idle level was HIGH, which ENERGISED every relay and connected the
+# SUBJECT to a live TENS output at boot, on watchdog expiry, on e-stop and
+# between every PWM pulse - the exact inverse of the intended fail-safe, and
+# with the dummy load never in circuit.
+#
+# HOW TO VERIFY (do this before every session - docs/TESTING.md 1.3):
+#   at boot, meter COM-NO on each channel = OPEN, COM-NC = CLOSED.
+# If COM-NO reads closed at boot, this flag is wrong for your modules.
+CHANNEL_ACTIVE_LOW = False
+
+# Same question for the TIMER keep-alive relay, driven from GPIO2. Idle must
+# leave the coil DE-ENERGISED, i.e. the AUVON's TIMER button NOT held down.
+# Driven directly from a GPIO, HIGH energises -> idle must be LOW.
+# Verify: at boot the timer relay must be silent and the button unpressed.
+TIMER_ACTIVE_LOW = False
 
 # --- Timing ----------------------------------------------------------------
 # Button press duration that the AS8016 reliably registers (from the previous

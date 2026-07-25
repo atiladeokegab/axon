@@ -52,7 +52,7 @@ Expected final lines:
 
 ```
 ------------------------------------------------------------
-74 checks, 0 failed
+79 checks, 0 failed
 All checks passed.
 ```
 
@@ -209,8 +209,22 @@ continuity/resistance and probe **COM to NO** on each of the 8 relays.
 - Expected at boot: **open circuit** on every channel (no continuity COM–NO).
 - Expected COM–NC: **closed** (this is the dummy-load path).
 
-If any channel reads closed COM–NO at boot, stop. Check `CHANNEL_ACTIVE_LOW` in
-`firmware/config/pins.py` matches your module's trigger polarity.
+**If any channel reads closed COM–NO at boot, STOP.** `CHANNEL_ACTIVE_LOW` in
+`firmware/config/pins.py` does not match your modules' trigger polarity, and the
+consequence is severe: COM–NO is the electrode path to the **subject**, so an
+energised-at-idle relay means the person is connected to a live TENS output at
+boot, on watchdog expiry, on e-stop, and between every PWM pulse — with the
+dummy resistor never in circuit.
+
+- Modules that energise on **HIGH** (ours) → `CHANNEL_ACTIVE_LOW = False`
+- Modules that energise on **LOW** → `CHANNEL_ACTIVE_LOW = True`
+
+This is the single most important check in bring-up. It is the difference
+between "idle = safe" and "idle = the subject is the load". Re-run it after any
+change to the relay modules or their wiring.
+
+While you are here, confirm the **TIMER relay is also silent at boot** — an
+inverted `TIMER_ACTIVE_LOW` holds the AUVON's TIMER button permanently pressed.
 
 ### 1.4 Go wireless
 

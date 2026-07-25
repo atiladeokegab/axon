@@ -90,6 +90,13 @@ person in public. Some venues prohibit it outright.
 2. Confirm every relay is open at boot. Set a multimeter to continuity and
    probe **COM–NO** on each of the 8 relays: all must read **open**, and
    **COM–NC** must read **closed** (the dummy-load path).
+
+   > **This check exists because getting it wrong inverts the fail-safe.**
+   > COM–NO is the path to the **subject**. If the idle GPIO level energises
+   > the relay, then boot, watchdog expiry, e-stop and every PWM gap all
+   > connect the person to a live output while the dummy resistor sits unused.
+   > Set `CHANNEL_ACTIVE_LOW` in `firmware/config/pins.py` to match your
+   > modules: `False` for HIGH-trigger (ours), `True` for LOW-trigger.
 3. Confirm the software comes up disarmed and that the kill latches
    (venv active — see the [README](../README.md#0-set-up-the-virtual-environment-once)):
    ```bash

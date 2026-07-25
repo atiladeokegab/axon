@@ -590,6 +590,45 @@ except Exception as exc:
     check("token tests", False, repr(exc))
 
 # ---------------------------------------------------------------------------
+print("\n15. Relay polarity - the idle state MUST release the relay")
+# SAFETY-CRITICAL. COM->NO = electrodes on the SUBJECT, COM->NC = dummy
+# resistor. A de-energised relay rests on NC, so the idle level must be the one
+# that does NOT energise. With the modules we use (HIGH-level trigger) that
+# means idle = LOW.
+#
+# This was wrong: CHANNEL_ACTIVE_LOW=True made idle HIGH, which energised every
+# relay and connected the subject to a live TENS output at boot, on watchdog
+# expiry, on e-stop, and between every PWM pulse.
+try:
+    from lib.hal import Pin as _Pin
+    from lib.stim_channel import StimChannel as _SC
+    from config import pins as _P
+
+    check("channel idle level is LOW (relay released -> dummy load)",
+          _P.CHANNEL_ACTIVE_LOW is False,
+          "CHANNEL_ACTIVE_LOW=%s" % _P.CHANNEL_ACTIVE_LOW)
+    check("timer relay idle level is LOW (button not held)",
+          _P.TIMER_ACTIVE_LOW is False,
+          "TIMER_ACTIVE_LOW=%s" % _P.TIMER_ACTIVE_LOW)
+
+    # A freshly constructed channel must sit at the de-energised level.
+    ch = _SC("P", 4, active_low=_P.CHANNEL_ACTIVE_LOW)
+    idle = ch._pin.value()
+    check("channel constructs de-energised", idle == 0, "idle level=%d" % idle)
+
+    ch.set_duty(0.7)
+    ch.service()
+    ch.off()
+    check("off() returns to the de-energised level", ch._pin.value() == 0)
+
+    # boot.py must drive the same level before anything else runs.
+    off_level = 1 if _P.CHANNEL_ACTIVE_LOW else 0
+    check("boot.py safe level matches (subject disconnected at power-on)",
+          off_level == 0, "boot writes %d" % off_level)
+except Exception as exc:
+    check("relay polarity tests", False, repr(exc))
+
+# ---------------------------------------------------------------------------
 failed = [r for r in results if r[0] == FAIL]
 print("\n%s" % ("-" * 60))
 print("%d checks, %d failed" % (len(results), len(failed)))

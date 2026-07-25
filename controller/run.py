@@ -140,21 +140,26 @@ HELP = """
 |    ?            show this help again                                     |
 |    Q            quit                                                     |
 |                                                                          |
-|  READING THE STATUS LINE                                                 |
-|    act=  where the arm ACTUALLY is now (from the pose estimator)         |
-|    tgt=  where you have COMMANDED it to go (moves with the arrow keys)   |
-|    The controller stimulates muscles until act catches up to tgt.        |
+|  READING THE STATUS LINE (compact, fits your terminal width)             |
+|    [ARM]/[DIS]/[KIL]   armed / disarmed / e-stopped                      |
+|    e45/60 f10/30 a0/15  joint = ACTUAL/TARGET in degrees                 |
+|         e = elbow, f = shoulder flexion, a = shoulder abduction          |
+|    g:C / g:-           grip closed / open                                |
+|    CH1:0.70 ...        channels firing and their duty. 'idle' = nothing. |
 |                                                                          |
-|    stim: which channels are firing and at what duty (0.00-0.70).         |
-|          'idle' means nothing is being stimulated.                       |
+|    The controller stimulates until ACTUAL catches up to TARGET. Arrow    |
+|    keys move TARGET; the arm follows.                                    |
 |                                                                          |
-|  THE board: FIELD - what the BOARD itself reports (hardware modes only)  |
-|    board:ok         healthy, armed, listening                            |
-|    board:DISARMED   board is not armed - press A                         |
-|    board:KILLED(..) e-stop or kill latched - press A to re-arm           |
-|    board:REBOOTED   the board restarted (power/crash). Press A to re-arm |
-|    board:LOST 3s    no heartbeat - Wi-Fi dropped or board powered off    |
-|    board:NO-REPLY   never heard from it - wrong IP, or firewall          |
+|    On a narrow terminal the least useful fields drop first, so the state  |
+|    and board flags are always visible.                                   |
+|                                                                          |
+|  THE bd: FIELD - what the BOARD itself reports (hardware modes only)     |
+|    bd:ok         healthy, armed, listening                               |
+|    bd:DISARMED   board is not armed - press A                            |
+|    bd:KILL(..)   e-stop or kill latched - press A to re-arm              |
+|    bd:REBOOTED   the board restarted (power/crash). Press A to re-arm    |
+|    bd:LOST3s     no heartbeat - Wi-Fi dropped or board powered off       |
+|    bd:NO-REPLY   never heard from it - wrong IP, or firewall             |
 |  You do NOT need bench.py to see this (running both would fight over     |
 |  the link). Everything you need is on this line.                         |
 |                                                                          |
@@ -206,35 +211,43 @@ def render(ctl, sim_mode, hw=False):
         age = ctl.board_age_s()
         bs = ctl.board_status
         if age is None:
-            bd = " | board:NO-REPLY"
+            bd = "bd:NO-REPLY"
         elif age > 2.0:
-            bd = " | board:LOST %.0fs" % age
+            bd = "bd:LOST%.0fs" % age
         elif ctl.board_rebooted:
-            bd = " | board:REBOOTED(re-arm)"
+            bd = "bd:REBOOTED"
         elif bs and bs.get("killed"):
-            bd = " | board:KILLED(%s)" % bs.get("fault")
+            bd = "bd:KILL(%s)" % str(bs.get("fault"))[:12]
         elif bs and not bs.get("armed"):
-            bd = " | board:DISARMED"
+            bd = "bd:DISARMED"
         else:
-            bd = " | board:ok"
+            bd = "bd:ok"
 
-    # NOTE: board state goes near the FRONT. It is the most important field
-    # when something stops working, and the line gets truncated to the terminal
-    # width - anything at the end can vanish exactly when you need it.
-    line = ("[%-8s] %-9s%-22s| elbow act%6.1f tgt%6.1f | flex act%6.1f tgt%6.1f "
-            "| abd act%6.1f tgt%6.1f | grip:%-6s | stim: %s%s"
-            % (state, pose_flag, bd,
-               s["measured"]["elbow"], s["targets"]["elbow"],
-               s["measured"]["shoulder_flex"], s["targets"]["shoulder_flex"],
-               s["measured"]["shoulder_abd"], s["targets"]["shoulder_abd"],
-               "CLOSED" if s["grip"] else "open",
-               mapping.describe(s["duties"]), why))
+    # ---- build the line in PRIORITY order, then fit it to the terminal ----
+    # The window is often ~80 columns, and a fixed verbose layout simply gets
+    # chopped - losing whichever field happens to sit at the end, which is
+    # exactly when you need it. So: emit compact fields, most diagnostic first,
+    # and drop the least important ones if the terminal is narrow.
+    m, tg = s["measured"], s["targets"]
+    fields = [
+        ("[%s]" % state[:3], 1),                      # ARM / DIS / KIL
+        (bd, 2),                                      # board:...
+        (pose_flag, 3),
+        ("e%.0f/%.0f" % (m["elbow"], tg["elbow"]), 1),
+        ("f%.0f/%.0f" % (m["shoulder_flex"], tg["shoulder_flex"]), 1),
+        ("a%.0f/%.0f" % (m["shoulder_abd"], tg["shoulder_abd"]), 4),
+        ("g:%s" % ("C" if s["grip"] else "-"), 5),
+        (mapping.describe(s["duties"]), 2),
+        (why.strip(), 1),                             # the "why nothing moves" hint
+    ]
 
-    # Must never exceed the terminal width. A line longer than the window wraps,
-    # and then '\r' only returns to the start of the LAST wrapped row - so the
-    # status line appears duplicated and smeared instead of refreshing in place.
-    # Reserve one column: some terminals auto-wrap on writing the final cell.
-    width = max(40, shutil.get_terminal_size((120, 24)).columns - 1)
+    width = max(40, shutil.get_terminal_size((100, 24)).columns - 1)
+    # Drop lowest-priority fields until it fits (priority 1 is never dropped).
+    for cut in (99, 5, 4, 3, 2):
+        parts = [f for f, pri in fields if f and pri <= cut]
+        line = " ".join(parts)
+        if len(line) <= width:
+            break
     sys.stdout.write("\r" + line[:width].ljust(width))
     sys.stdout.flush()
 
