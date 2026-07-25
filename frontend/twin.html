@@ -205,6 +205,207 @@
       box-shadow: 0 0 12px rgba(255, 107, 74, 0.8);
     }
 
+    .flow {
+      display: flex;
+      align-items: center;
+      min-height: 62px;
+      gap: 18px;
+      padding: 10px 4px 4px;
+      border-top: 1px solid var(--line);
+    }
+
+    .steps {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      gap: 7px;
+      list-style: none;
+    }
+
+    .steps li {
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--dim);
+      border-radius: 50%;
+      transition: background 200ms ease, border-color 200ms ease;
+    }
+
+    .steps li.is-done {
+      border-color: rgba(135, 247, 199, 0.5);
+      background: rgba(135, 247, 199, 0.45);
+    }
+
+    .steps li.is-current {
+      border-color: var(--signal);
+      background: var(--signal);
+      box-shadow: 0 0 10px rgba(135, 247, 199, 0.8);
+    }
+
+    .flow-body {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .flow-instruction {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(13px, 1.35vw, 17px);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .flow-choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .flow-choices:empty { display: none; }
+
+    .choice {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 6px 13px;
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: rgba(9, 19, 18, 0.7);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+    }
+
+    .choice:hover { border-color: rgba(135, 247, 199, 0.34); color: var(--ink); }
+    .choice:focus-visible { outline: 1px solid var(--signal); outline-offset: 2px; }
+
+    .choice.is-selected {
+      border-color: rgba(135, 247, 199, 0.55);
+      background: var(--signal-soft);
+      color: var(--signal);
+    }
+
+    .choice-name {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .choice-sub {
+      color: var(--dim);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 7px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    /* Grip cannot be confirmed from the pose — no finger landmarks — so its
+       count is elapsed time. Shown rather than presented as if observed. */
+    .choice-unverified .choice-sub::after {
+      content: " · unverified";
+      color: #f4c669;
+    }
+
+    .flow-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .flow-count {
+      color: var(--ink);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .flow-count[hidden] { display: none; }
+
+    .flow-primary {
+      min-height: 34px;
+      padding: 0 22px;
+      border: 1px solid rgba(135, 247, 199, 0.55);
+      background: var(--signal-soft);
+      color: var(--signal);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 140ms ease, color 140ms ease;
+    }
+
+    .flow-primary:hover { background: rgba(135, 247, 199, 0.26); color: var(--ink); }
+    .flow-primary:disabled { opacity: 0.35; cursor: default; }
+    .flow-primary.is-stop {
+      border-color: rgba(255, 107, 74, 0.5);
+      background: var(--alert-soft);
+      color: #ff9b82;
+    }
+
+    .flow-secondary {
+      min-height: 34px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .flow-secondary[hidden] { display: none; }
+    .flow-secondary:hover { color: var(--ink); }
+
+    @media (max-width: 760px) {
+      .choice-sub { display: none; }
+      .flow-instruction { white-space: normal; }
+    }
+
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 14px;
+      min-width: 0;
+    }
+
+    .tempo {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      opacity: 0.4;
+      transition: opacity 160ms ease;
+    }
+
+    .tempo.is-live {
+      opacity: 1;
+    }
+
+    .tempo input {
+      width: 76px;
+      accent-color: var(--signal);
+      cursor: pointer;
+    }
+
+    .tempo span {
+      min-width: 2.2em;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+    }
+
     .side-picker {
       display: flex;
       align-items: center;
@@ -777,10 +978,14 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <div class="side-picker" role="group" aria-label="Which arm to track">
-        <span class="side-picker-label">Arm</span>
-        <button type="button" class="side-option" data-side="left">Left</button>
-        <button type="button" class="side-option is-selected" data-side="right">Right</button>
+
+      <div class="audio-controls" role="group" aria-label="Audio coaching">
+        <button type="button" class="side-option" id="voice-toggle" aria-pressed="false">Voice</button>
+        <button type="button" class="side-option" id="metronome-toggle" aria-pressed="false">Pace</button>
+        <label class="tempo" for="tempo">
+          <input type="range" id="tempo" min="30" max="100" step="5" value="60">
+          <span id="tempo-readout">60</span>
+        </label>
       </div>
       <div class="state-cluster" aria-live="polite">
         <span class="state-pill" id="connection-pill">
@@ -825,6 +1030,21 @@
       </span>
     </section>
     </div>
+
+    <section class="flow" id="flow" aria-label="Guided session">
+      <ol class="steps" id="steps" aria-label="Progress"></ol>
+
+      <div class="flow-body">
+        <p class="flow-instruction" id="flow-instruction" aria-live="polite"></p>
+        <div class="flow-choices" id="flow-choices"></div>
+      </div>
+
+      <div class="flow-actions">
+        <span class="flow-count" id="flow-count" hidden></span>
+        <button type="button" class="flow-secondary" id="flow-back" hidden>Back</button>
+        <button type="button" class="flow-primary" id="flow-next">Start</button>
+      </div>
+    </section>
 
     <footer class="footerbar">
       <p class="credit">
@@ -1389,6 +1609,15 @@
     const handGrip = makeMuscle("handGrip", 0.1, HAND_LENGTH, 0xcdc4a8);
     forearm.pivot.add(handGrip);
 
+    // Declared up here, not beside the rest of the pad code further down.
+    // relayoutSegments() -> layoutPadMarkers() runs during module init for the
+    // standby pose, and a `const` still in its temporal dead zone throws — a
+    // failure this file has hit before, and one that cannot be guarded with
+    // typeof. The error also surfaces as a misleading "mesh load failed",
+    // because the async loader's catch swallows it.
+    const padMarkers = new Map();
+    let padsVisible = false;
+
     const muscleSlots = {
       bicep,
       tricep,
@@ -1599,6 +1828,12 @@
       segmentContainers[segmentName] = container;
     }
 
+    // Placed after a rebuild, not during: the markers are positioned from the
+    // muscles' bounds, which are only meaningful once every segment is mounted.
+    function refreshPadMarkers() {
+      if (typeof ensurePadMarkers === "function") ensurePadMarkers();
+    }
+
     // Parsed geometry per side, so switching arms after the first visit costs no
     // fetch and no re-parse. Only one side is ever mounted in the scene; the
     // other is just retained geometry (~58k faces, negligible).
@@ -1664,6 +1899,7 @@
         }
         buildArm(loaded);
         mountedMeshSide = side;
+        refreshPadMarkers();
       } catch (err) {
         // A missing/unreadable asset (bad path, server not serving frontend/assets/)
         // surfaces as a fetch/network/404-style failure — that's the expected, quiet
@@ -1785,6 +2021,7 @@
       });
       const handContainer = segmentContainers.hand;
       if (handContainer) handContainer.position.y = forearm.length;
+      layoutPadMarkers();
     }
 
     // Same guard applyArmPose applies, hoisted so a degenerate sample can be
@@ -1853,6 +2090,719 @@
       }
     }
 
+
+
+    // --- Audio coaching ------------------------------------------------------
+    //
+    // Cues are pre-rendered to files by scripts/generate_voice.py rather than
+    // synthesised live: a cue has to land the moment the state changes, and the
+    // network at a venue is not something to bet a demo on. Browser
+    // speechSynthesis covers anything missing.
+    //
+    // Both of these stay off until the user asks for them. Browsers block audio
+    // until a gesture anyway, but the stronger reason is that a screen which
+    // starts talking at you unprompted is hostile.
+
+    const VOICE_DIR = "assets/voice";
+    // A spoken cue cannot behave like a visual one. The prompt is re-asserted on
+    // every frame while the arm is missing; saying it 28 times a second would be
+    // unusable, so a cue is spoken on entering a state and only repeated after
+    // this long if the state persists.
+    const CUE_REPEAT_MS = 9000;
+
+    let voiceEnabled = false;
+    let voiceManifest = null;
+    const voiceCache = new Map();
+    let lastCueKey = null;
+    let lastCueAt = 0;
+
+    const voiceToggle = document.querySelector("#voice-toggle");
+    const metronomeToggle = document.querySelector("#metronome-toggle");
+    const tempoInput = document.querySelector("#tempo");
+    const tempoReadout = document.querySelector("#tempo-readout");
+    const tempoLabel = document.querySelector(".tempo");
+
+    async function loadVoiceManifest() {
+      if (voiceManifest) return voiceManifest;
+      try {
+        const response = await fetch(VOICE_DIR + "/manifest.json");
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        voiceManifest = await response.json();
+      } catch (err) {
+        // Not fatal: speak() falls through to the browser's own voice.
+        console.warn("[twin] no voice manifest; falling back to speechSynthesis", err);
+        voiceManifest = {};
+      }
+      return voiceManifest;
+    }
+
+    function speakFallback(text) {
+      if (!text || !window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function speak(key, options) {
+      const settings = options || {};
+      if (!voiceEnabled || !key) return;
+
+      const now = performance.now();
+      if (!settings.force && key === lastCueKey && now - lastCueAt < CUE_REPEAT_MS) return;
+      lastCueKey = key;
+      lastCueAt = now;
+
+      const entry = voiceManifest ? voiceManifest[key] : null;
+      if (!entry) {
+        speakFallback(settings.text || key.replace(/_/g, " "));
+        return;
+      }
+
+      let audio = voiceCache.get(key);
+      if (!audio) {
+        audio = new Audio(VOICE_DIR + "/" + entry.file);
+        audio.preload = "auto";
+        voiceCache.set(key, audio);
+      }
+      // Rewind rather than overlap: two cues talking over each other is worse
+      // than a clipped one.
+      audio.currentTime = 0;
+      audio.play().catch(() => speakFallback(entry.text));
+    }
+
+    // Metronome. Synthesised here rather than played from a file because
+    // rhythmic auditory cueing depends on the beat being accurate — a drifting
+    // track is worse than no track. Scheduled ahead against the audio clock,
+    // since setTimeout alone is far too jittery to keep time with.
+    const METRONOME_LOOKAHEAD_S = 0.12;
+    const METRONOME_TICK_MS = 25;
+    const BEATS_PER_BAR = 4;
+
+    let audioContext = null;
+    let metronomeOn = false;
+    let metronomeBpm = Number(tempoInput.value);
+    let nextBeatTime = 0;
+    let beatIndex = 0;
+    let metronomeTimer = null;
+
+    function ensureAudioContext() {
+      if (!audioContext) {
+        const Ctor = window.AudioContext || window.webkitAudioContext;
+        audioContext = new Ctor();
+      }
+      // Browsers start contexts suspended until a gesture; both toggles are
+      // clicks, so this resumes on the first one.
+      if (audioContext.state === "suspended") audioContext.resume();
+      return audioContext;
+    }
+
+    function scheduleClick(time, accented) {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.frequency.value = accented ? 880 : 620;
+      // Short percussive envelope; a raw gate would click audibly on its own.
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(accented ? 0.5 : 0.28, time + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.09);
+      oscillator.connect(gain).connect(audioContext.destination);
+      oscillator.start(time);
+      oscillator.stop(time + 0.1);
+    }
+
+    function metronomeScheduler() {
+      const beatLength = 60 / metronomeBpm;
+      while (nextBeatTime < audioContext.currentTime + METRONOME_LOOKAHEAD_S) {
+        scheduleClick(nextBeatTime, beatIndex % BEATS_PER_BAR === 0);
+        nextBeatTime += beatLength;
+        beatIndex += 1;
+      }
+    }
+
+    function setMetronome(on) {
+      metronomeOn = on;
+      metronomeToggle.classList.toggle("is-selected", on);
+      metronomeToggle.setAttribute("aria-pressed", String(on));
+      tempoLabel.classList.toggle("is-live", on);
+
+      if (on) {
+        ensureAudioContext();
+        beatIndex = 0;
+        nextBeatTime = audioContext.currentTime + 0.06;
+        metronomeTimer = window.setInterval(metronomeScheduler, METRONOME_TICK_MS);
+      } else {
+        window.clearInterval(metronomeTimer);
+        metronomeTimer = null;
+      }
+    }
+
+    function setVoice(on) {
+      voiceEnabled = on;
+      voiceToggle.classList.toggle("is-selected", on);
+      voiceToggle.setAttribute("aria-pressed", String(on));
+      if (on) {
+        ensureAudioContext();
+        loadVoiceManifest().then(() => speak("ready", { force: true }));
+      } else if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    voiceToggle.addEventListener("click", () => setVoice(!voiceEnabled));
+    metronomeToggle.addEventListener("click", () => setMetronome(!metronomeOn));
+    tempoInput.addEventListener("input", () => {
+      metronomeBpm = Number(tempoInput.value);
+      tempoReadout.textContent = metronomeBpm;
+      // Tempo changes take effect from the next scheduled beat, so the bar in
+      // progress is not cut short.
+    });
+
+    window.addEventListener("pagehide", () => {
+      setMetronome(false);
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    });
+
+
+    // --- Electrode markers ---------------------------------------------------
+    //
+    // A disc per pad, sitting on the muscle that pad drives. These exist so pad
+    // placement can be shown on the model instead of described in text — until
+    // now the placement pipeline was only reachable over HTTP, so a new user
+    // could not physically set the system up.
+    //
+    // Each marker is parented to its muscle's slot, so it inherits the segment
+    // alignment and follows the arm without any per-frame work.
+
+    const PAD_ORDER = ["BICEP", "TRICEP", "FRONT_DELT", "REAR_DELT", "WRIST_FLEX"];
+
+    const PAD_LABEL = {
+      BICEP: "Bicep",
+      TRICEP: "Tricep",
+      FRONT_DELT: "Front deltoid",
+      REAR_DELT: "Rear deltoid",
+      WRIST_FLEX: "Forearm flexor",
+      WRIST_EXTEND: "Forearm extensor",
+    };
+
+    const PAD_CUE = {
+      BICEP: "pad_bicep",
+      TRICEP: "pad_tricep",
+      FRONT_DELT: "pad_front_delt",
+      REAR_DELT: "pad_rear_delt",
+      WRIST_FLEX: "pad_wrist_flex",
+    };
+
+    const PAD_RADIUS = 0.11;
+    // How far off the bone axis a pad sits — roughly the muscle's own girth, so
+    // the disc lands on the surface rather than inside the belly.
+    const PAD_STANDOFF = 0.24;
+
+    // Where each pad goes, as a fraction along its bone and which face of it.
+    // This mirrors how backend/placement/geometry.py already models placement
+    // (a percentage between two joints), so the model and the photo overlays
+    // describe the same spot rather than two independent guesses.
+    //
+    // An earlier version derived these from the muscle meshes' bounding boxes.
+    // That mixed world and local space — markers ended up at raw BP3D
+    // millimetre coordinates hundreds of units away, which quietly blew up the
+    // scene's bounds and pinned the auto-framing at its widest. Bone-relative
+    // placement is in scene units throughout, so there is nothing to convert.
+    const PAD_PLACEMENT = {
+      BICEP:      { segment: "upperArm", along: 0.55, face: +1 },
+      TRICEP:     { segment: "upperArm", along: 0.55, face: -1 },
+      FRONT_DELT: { segment: "upperArm", along: 0.14, face: +1 },
+      REAR_DELT:  { segment: "upperArm", along: 0.14, face: -1 },
+      WRIST_FLEX: { segment: "forearm",  along: 0.72, face: +1 },
+      WRIST_EXTEND: { segment: "forearm", along: 0.72, face: -1 },
+    };
+
+    function makePadMaterial() {
+      return new THREE.MeshStandardMaterial({
+        color: 0x8ea19a,
+        emissive: 0x1d3b33,
+        emissiveIntensity: 0.4,
+        roughness: 0.5,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.9,
+      });
+    }
+
+    function ensurePadMarkers() {
+      for (const pad of PAD_ORDER) {
+        const spec = PAD_PLACEMENT[pad];
+        if (!spec) continue;
+        // Parented to the bone pivot, not to a muscle slot: the pivot is in
+        // scene units and already carries the segment's live orientation.
+        const pivot = spec.segment === "forearm" ? forearm.pivot : upperArm.pivot;
+
+        let marker = padMarkers.get(pad);
+        if (!marker) {
+          marker = new THREE.Mesh(
+            new THREE.CylinderGeometry(PAD_RADIUS, PAD_RADIUS, 0.03, 20),
+            makePadMaterial(),
+          );
+          marker.name = `pad_${pad}`;
+          marker.castShadow = true;
+          marker.visible = padsVisible;
+          // The disc's own axis is +Y; lay it flat against the front or back of
+          // the limb by tipping it onto the segment's Z face.
+          marker.rotation.x = Math.PI / 2;
+          padMarkers.set(pad, marker);
+        }
+        if (marker.parent !== pivot) pivot.add(marker);
+      }
+      layoutPadMarkers();
+    }
+
+    // Re-run whenever bone lengths change, since "55% along the upper arm" moves
+    // with the arm.
+    function layoutPadMarkers() {
+      for (const [pad, marker] of padMarkers) {
+        const spec = PAD_PLACEMENT[pad];
+        if (!spec) continue;
+        const segment = spec.segment === "forearm" ? forearm : upperArm;
+        marker.position.set(0, segment.length * spec.along, spec.face * PAD_STANDOFF);
+      }
+    }
+
+    // null = leave them all plain; a pad name = spotlight that one for setup.
+    function highlightPad(pad) {
+      for (const [name, marker] of padMarkers) {
+        const isFocus = pad === null || name === pad;
+        marker.material.color.set(isFocus && pad !== null ? 0x87f7c7 : 0x8ea19a);
+        marker.material.emissive.set(isFocus && pad !== null ? 0x1f6f57 : 0x1d3b33);
+        marker.material.emissiveIntensity = isFocus && pad !== null ? 1.2 : 0.4;
+        marker.material.opacity = isFocus ? 0.95 : 0.22;
+      }
+    }
+
+    function setPadsVisible(visible) {
+      padsVisible = visible;
+      for (const marker of padMarkers.values()) marker.visible = visible;
+    }
+
+    // --- Guided exercise sessions -------------------------------------------
+    //
+    // Each exercise is data: which pad drives it, which joint angle proves it
+    // happened, and the thresholds a rep has to cross. One engine runs any of
+    // them, so adding an exercise is adding an entry here.
+    //
+    // `restBelow` / `repAbove` are deliberately far apart. A single threshold
+    // would count several reps as a trembling arm crossed back and forth over
+    // it; requiring the angle to reach the top and come all the way back means
+    // one rep is one real movement.
+    //
+    // Demo poses are in twin space (x right, y up, z toward the viewer), with
+    // the shoulder at the origin.
+    const EXERCISES = [
+      {
+        id: "elbow_flexion", name: "Elbow flexion", muscle: "Bicep",
+        motion: "raise", target: "bicep", cue: "motion_raise",
+        metric: "elbowFlex", restBelow: 35, repAbove: 70,
+        reps: 8, bpm: 50, verified: true,
+        demo: { rest: { e: [0.15, -1.20, 0], w: [0.25, -2.20, 0] },
+                peak: { e: [0.15, -1.20, 0], w: [0.30, -1.30, 0.95] } },
+      },
+      {
+        id: "elbow_extension", name: "Elbow extension", muscle: "Tricep",
+        motion: "lower", target: "tricep", cue: "motion_lower",
+        // Inverted sense: the movement being trained is the arm STRAIGHTENING,
+        // so the rep completes as the angle falls, not as it rises.
+        metric: "elbowFlex", restBelow: 35, repAbove: 70, inverted: true,
+        reps: 8, bpm: 50, verified: true,
+        demo: { rest: { e: [0.15, -1.20, 0], w: [0.30, -1.30, 0.95] },
+                peak: { e: [0.15, -1.20, 0], w: [0.25, -2.20, 0] } },
+      },
+      {
+        id: "shoulder_flexion", name: "Forward reach", muscle: "Front delt",
+        motion: "push_forward", target: "frontDelt", cue: "motion_push_forward",
+        metric: "shoulderFlex", restBelow: 20, repAbove: 60,
+        reps: 6, bpm: 40, verified: true,
+        demo: { rest: { e: [0.15, -1.20, 0], w: [0.25, -2.20, 0] },
+                peak: { e: [0.15, -0.25, 1.15], w: [0.25, -0.15, 2.15] } },
+      },
+      {
+        id: "shoulder_extension", name: "Pull back", muscle: "Rear delt",
+        motion: "pull_back", target: "rearDelt", cue: "motion_pull_back",
+        metric: "shoulderFlex", restBelow: -25, repAbove: -5, fromBelow: true,
+        reps: 6, bpm: 40, verified: true,
+        demo: { rest: { e: [0.15, -1.20, 0], w: [0.25, -2.20, 0] },
+                peak: { e: [0.15, -1.05, -0.6], w: [0.25, -1.85, -1.2] } },
+      },
+      {
+        id: "grip", name: "Grip", muscle: "Wrist flexor",
+        motion: "grip", target: "forearmFlexor", cue: "motion_grip",
+        // No finger landmarks exist in MediaPipe Pose, so there is nothing to
+        // measure. Counted on the clock and labelled unverified rather than
+        // presented as if it were observed.
+        metric: null, verified: false,
+        reps: 8, bpm: 45,
+        demo: null,
+      },
+    ];
+
+    const DEMO_CYCLES = 2;
+    const DEMO_CYCLE_MS = 2600;
+    const BEATS_PER_REP = 4;   // one bar per repetition
+
+    const stepsList = document.querySelector("#steps");
+    const flowInstruction = document.querySelector("#flow-instruction");
+    const flowChoices = document.querySelector("#flow-choices");
+    const flowCount = document.querySelector("#flow-count");
+    const flowBack = document.querySelector("#flow-back");
+    const flowNext = document.querySelector("#flow-next");
+
+    let session = null;   // null when idle
+
+    function degrees(radians) {
+      return radians * 180 / Math.PI;
+    }
+
+    // Shoulder sits at the origin, so the elbow vector is the upper arm.
+    // Twin space: +x right, +y up, +z toward the viewer, so "hanging" is -y and
+    // "reaching toward the camera" is +z.
+    function jointAngles(elbow, wrist) {
+      const fore = wrist.clone().sub(elbow);
+      const toShoulder = elbow.clone().negate();
+      const included = degrees(toShoulder.angleTo(fore));
+      return {
+        elbowFlex: 180 - included,
+        shoulderFlex: degrees(Math.atan2(elbow.z, -elbow.y)),
+        shoulderAbd: degrees(Math.atan2(elbow.x, -elbow.y)),
+      };
+    }
+
+    function fireMotion(motion) {
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify({ type: "select_motion", motion }));
+    }
+
+    function startSession(exercise) {
+      if (session) stopSession({ silent: true });
+
+      session = {
+        exercise,
+        phase: "watch",
+        reps: 0,
+        startedAt: performance.now(),
+        // Rep detection needs the angle to reach the top before a return can
+        // count, so a session never opens already half-way through a rep.
+        armed: false,
+        lastBeat: -1,
+      };
+
+      speak("begin", { force: true });
+      paintSession();
+
+      // Pace at the exercise's own tempo. Left running through the demo so the
+      // rhythm is established before the patient is asked to move to it.
+      tempoInput.value = exercise.bpm;
+      tempoReadout.textContent = exercise.bpm;
+      metronomeBpm = exercise.bpm;
+      if (!metronomeOn) setMetronome(true);
+    }
+
+    function stopSession(options) {
+      const settings = options || {};
+      if (!session) return;
+      if (!settings.silent) speak("stopping", { force: true });
+      session = null;
+      setMetronome(false);
+      paintSession();
+    }
+
+    // --- Flow ---------------------------------------------------------------
+    //
+    // One thing on screen at a time, one obvious next action, and the model
+    // doing the explaining. Pad placement lives here because it was previously
+    // only reachable over HTTP — there was no way for a person to actually set
+    // the system up.
+
+    const FLOW_STEPS = ["arm", "pads", "exercise", "session"];
+
+    const flow = {
+      step: 0,
+      padIndex: 0,
+      arm: null,        // chosen side; null until picked, so Next stays disabled
+      exercise: null,
+    };
+
+    function stepName() {
+      return FLOW_STEPS[flow.step];
+    }
+
+    function renderSteps() {
+      stepsList.replaceChildren(...FLOW_STEPS.map((_, index) => {
+        const dot = document.createElement("li");
+        if (index < flow.step) dot.className = "is-done";
+        else if (index === flow.step) dot.className = "is-current";
+        return dot;
+      }));
+    }
+
+    function choiceButton(name, sub, selected, unverified, onPick) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "choice"
+        + (selected ? " is-selected" : "")
+        + (unverified ? " choice-unverified" : "");
+
+      const label = document.createElement("span");
+      label.className = "choice-name";
+      label.textContent = name;
+      button.append(label);
+
+      if (sub) {
+        const detail = document.createElement("span");
+        detail.className = "choice-sub";
+        detail.textContent = sub;
+        button.append(detail);
+      }
+      button.addEventListener("click", onPick);
+      return button;
+    }
+
+    function paintFlow() {
+      renderSteps();
+      flowChoices.replaceChildren();
+      flowCount.hidden = true;
+      flowBack.hidden = flow.step === 0;
+      flowNext.classList.remove("is-stop");
+      flowNext.disabled = false;
+
+      const step = stepName();
+
+      if (step === "arm") {
+        flowInstruction.textContent = "Which arm are we working on?";
+        for (const side of ["left", "right"]) {
+          flowChoices.append(choiceButton(
+            side === "left" ? "Left arm" : "Right arm", null,
+            flow.arm === side, false,
+            () => { flow.arm = side; applySideSelection(side); paintFlow(); },
+          ));
+        }
+        flowNext.textContent = "Next";
+        // Nothing to advance to until a side is chosen: the pad walkthrough
+        // and the meshes both depend on knowing which arm this is.
+        flowNext.disabled = flow.arm === null;
+        return;
+      }
+
+      if (step === "pads") {
+        const pad = PAD_ORDER[flow.padIndex];
+        flowInstruction.textContent =
+          `${PAD_LABEL[pad]} — ${voiceManifest?.[PAD_CUE[pad]]?.text ?? "place the pad on the highlighted muscle"}`;
+        flowCount.hidden = false;
+        flowCount.textContent = `${flow.padIndex + 1} / ${PAD_ORDER.length}`;
+        flowNext.textContent = flow.padIndex === PAD_ORDER.length - 1 ? "Done" : "Placed";
+        return;
+      }
+
+      if (step === "exercise") {
+        flowInstruction.textContent = "Choose an exercise.";
+        for (const exercise of EXERCISES) {
+          flowChoices.append(choiceButton(
+            exercise.name, exercise.muscle,
+            flow.exercise === exercise, !exercise.verified,
+            () => { flow.exercise = exercise; paintFlow(); },
+          ));
+        }
+        flowNext.textContent = "Start";
+        flowNext.disabled = flow.exercise === null;
+        return;
+      }
+
+      // session
+      if (!session) {
+        flowInstruction.textContent = "Session finished.";
+        flowNext.textContent = "Again";
+        return;
+      }
+      const phaseText = {
+        watch: "Watch the model.",
+        go: "Your turn — follow the pace.",
+        done: "Session complete. Well done.",
+      };
+      flowInstruction.textContent = `${session.exercise.name} — ${phaseText[session.phase] ?? ""}`;
+      flowCount.hidden = false;
+      flowCount.textContent = `${session.reps} / ${session.exercise.reps}`;
+      flowNext.textContent = "Stop";
+      flowNext.classList.add("is-stop");
+    }
+
+    // Kept as the name the session engine already calls.
+    function paintSession() {
+      if (stepName() === "session") paintFlow();
+    }
+
+    function enterStep(index) {
+      flow.step = Math.max(0, Math.min(FLOW_STEPS.length - 1, index));
+      const step = stepName();
+
+      if (step === "arm") {
+        setPadsVisible(false);
+        highlightPad(null);
+      } else if (step === "pads") {
+        setPadsVisible(true);
+        speak("setup_start", { force: true });
+        highlightPad(PAD_ORDER[flow.padIndex]);
+        // Let the intro land before naming the first pad.
+        window.setTimeout(() => speak(PAD_CUE[PAD_ORDER[flow.padIndex]], { force: true }), 2400);
+      } else if (step === "exercise") {
+        highlightPad(null);
+        setPadsVisible(true);
+        speak("choose_exercise", { force: true });
+      }
+      paintFlow();
+
+    }
+
+    flowNext.addEventListener("click", () => {
+      const step = stepName();
+
+      if (step === "arm") {
+        flow.padIndex = 0;
+        enterStep(flow.step + 1);
+        return;
+      }
+
+      if (step === "pads") {
+        if (flow.padIndex < PAD_ORDER.length - 1) {
+          flow.padIndex += 1;
+          highlightPad(PAD_ORDER[flow.padIndex]);
+          speak(PAD_CUE[PAD_ORDER[flow.padIndex]], { force: true });
+          paintFlow();
+        } else {
+          speak("pad_done", { force: true });
+          enterStep(flow.step + 1);
+        }
+        return;
+      }
+
+      if (step === "exercise") {
+        if (!flow.exercise) return;
+        enterStep(flow.step + 1);
+        startSession(flow.exercise);
+        paintFlow();
+        return;
+      }
+
+      // session: this button is Stop while running, Again once finished
+      if (session) {
+        stopSession();
+      } else {
+        flow.exercise = null;
+        enterStep(FLOW_STEPS.indexOf("exercise"));
+      }
+    });
+
+    flowBack.addEventListener("click", () => {
+      if (session) stopSession({ silent: true });
+      if (stepName() === "pads" && flow.padIndex > 0) {
+        flow.padIndex -= 1;
+        highlightPad(PAD_ORDER[flow.padIndex]);
+        paintFlow();
+        return;
+      }
+      enterStep(flow.step - 1);
+    });
+
+    // Demo pose for the current moment, or null when not demonstrating. Returns
+    // twin-space positions so the same rig that renders live pose renders this.
+    function demoPose() {
+      if (!session || session.phase !== "watch") return null;
+      const spec = session.exercise.demo;
+      const elapsed = performance.now() - session.startedAt;
+
+      if (!spec || elapsed > DEMO_CYCLES * DEMO_CYCLE_MS) return null;
+
+      // Ease in and out so the demonstration reads as a movement rather than a
+      // slider being dragged.
+      const phase = (elapsed % DEMO_CYCLE_MS) / DEMO_CYCLE_MS;
+      const t = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
+      const lerp = (a, b) => a.map((v, i) => v + (b[i] - v) * t);
+      return {
+        elbow: new THREE.Vector3(...lerp(spec.rest.e, spec.peak.e)),
+        wrist: new THREE.Vector3(...lerp(spec.rest.w, spec.peak.w)),
+      };
+    }
+
+    function completeRep() {
+      session.reps += 1;
+      const remaining = session.exercise.reps - session.reps;
+
+      if (session.reps <= 10) speak(`count_${session.reps}`, { force: true });
+      paintSession();
+
+      if (remaining === 0) {
+        session.phase = "done";
+        speak("complete", { force: true });
+        paintSession();
+        window.setTimeout(() => stopSession({ silent: true }), 2600);
+      } else if (remaining === 1) {
+        window.setTimeout(() => speak("last_one", { force: true }), 700);
+      }
+    }
+
+    // Called once per rendered frame with the pose currently on screen.
+    function updateSession(elbow, wrist) {
+      if (!session) return;
+      const exercise = session.exercise;
+      const elapsed = performance.now() - session.startedAt;
+
+      if (session.phase === "watch") {
+        const demoing = exercise.demo && elapsed < DEMO_CYCLES * DEMO_CYCLE_MS;
+        if (demoing) return;
+        session.phase = "go";
+        session.startedAt = performance.now();
+        speak(exercise.cue, { force: true });
+        paintSession();
+        return;
+      }
+      if (session.phase !== "go") return;
+
+      // Unmeasurable exercises (grip) are paced rather than observed: one rep
+      // per bar of the metronome, so the count reflects effort attempted, not
+      // movement confirmed.
+      if (!exercise.metric) {
+        const beat = Math.floor((performance.now() - session.startedAt)
+                                / (60000 / exercise.bpm * BEATS_PER_REP));
+        if (beat > session.lastBeat) {
+          session.lastBeat = beat;
+          if (beat > 0) completeRep();
+          fireMotion(exercise.motion);
+        }
+        return;
+      }
+
+      const value = jointAngles(elbow, wrist)[exercise.metric];
+      // `fromBelow` exercises move into negative angles (pulling behind the
+      // body), and `inverted` ones complete as the angle falls rather than
+      // rises. Normalising here keeps one comparison for all of them.
+      const reached = exercise.fromBelow
+        ? value > exercise.repAbove
+        : (exercise.inverted ? value < exercise.restBelow : value > exercise.repAbove);
+      const returned = exercise.fromBelow
+        ? value < exercise.restBelow
+        : (exercise.inverted ? value > exercise.repAbove : value < exercise.restBelow);
+
+      if (!session.armed) {
+        if (returned) {
+          session.armed = true;
+          // Assist the movement the patient is about to attempt.
+          fireMotion(exercise.motion);
+        }
+        return;
+      }
+      if (reached) {
+        session.armed = false;
+        completeRep();
+      }
+    }
+
+    paintFlow();
+
     // Displayed anatomy follows the selected arm. An arm is chiral, so this has
     // to swap in the other side's real meshes rather than flip the current ones
     // — a mirrored right arm is a left arm, which would put the muscles on the
@@ -1873,12 +2823,29 @@
       return `Waiting for ${armNoun()}`;
     }
 
+    function cueKeyFor(status) {
+      if (status === "no_person") return "no_person";
+      if (status === "arm_not_visible") {
+        return selectedSide === "left" ? "arm_left" : "arm_right";
+      }
+      return "arm_generic";
+    }
+
     function showPrompt(status) {
-      promptText.textContent = promptTextFor(status);
+      const text = promptTextFor(status);
+      promptText.textContent = text;
+      // Spoken as well as shown: the person this prompt is for is mid-movement,
+      // looking at their arm rather than at the screen.
+      speak(cueKeyFor(status), { text: text });
       prompt.hidden = false;
     }
 
     function hidePrompt() {
+      // Only on the transition back — "got you" on every frame would be absurd.
+      if (!prompt.hidden) {
+        speak("reacquired", { text: "Got you", force: true });
+        lastCueKey = null;   // let the next loss re-announce itself immediately
+      }
       prompt.hidden = true;
     }
 
@@ -2109,12 +3076,20 @@
       const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA_S);
       const elapsed = clock.elapsedTime;
 
-      if (hasPoseTarget) {
+      // A demonstration drives the rig directly, overriding live pose: the
+      // model is showing the movement rather than mirroring one.
+      const demo = demoPose();
+      if (demo) {
+        smoothedElbow.copy(demo.elbow);
+        smoothedWrist.copy(demo.wrist);
+        applyArmPose(smoothedElbow, smoothedWrist);
+      } else if (hasPoseTarget) {
         const poseK = 1 - Math.exp(-POSE_SMOOTHING_RATE * delta);
         smoothedElbow.lerp(targetElbow, poseK);
         smoothedWrist.lerp(targetWrist, poseK);
         applyArmPose(smoothedElbow, smoothedWrist);
       }
+      updateSession(smoothedElbow, smoothedWrist);
 
       const viewK = 1 - Math.exp(-VIEW_SMOOTHING_RATE * delta);
       presentationRig.rotation.y += (pointerTargetX - presentationRig.rotation.y) * viewK;
@@ -2145,6 +3120,11 @@
       requestAnimationFrame(animate);
     }
     animate();
+
+    // Loaded regardless of whether voice is on: the flow shows each cue's text
+    // on screen, so the wording has to exist even in silence.
+    loadVoiceManifest().then(paintFlow);
+
 
     window.addEventListener("pagehide", () => {
       allowReconnect = false;

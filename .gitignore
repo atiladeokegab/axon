@@ -4,6 +4,14 @@ __pycache__/
 venv/
 .pytest_cache/
 models/
+
+# Secrets. Anything committed here is public the moment the repo is pushed, and
+# a key in git history survives deleting the file — rotation is the only fix.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
 scratch_*.png
 scratch_*.png.b64
 
