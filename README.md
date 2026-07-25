@@ -146,6 +146,75 @@ this code:
   proves the board fires/stops correctly without a person attached), not
   as a formality but as the actual first real-hardware test.
 
+## Sending pose to the control loop (hardware team)
+
+We are the **pose estimator**. The control loop (`controller/run.py`, separate
+repo) is the **receiver**. Data flows one way — we push UDP datagrams at it,
+there is nothing here for it to call. Full contract in
+[`docs/POSE_OUTPUT.md`](docs/POSE_OUTPUT.md); the spec we implemented against
+is their `POSE_API.md`.
+
+```
+POSE_UDP_ENABLED=true POSE_UDP_HOST=<controller ip> uv run uvicorn backend.main:app
+```
+
+Off by default on purpose: enabling it starts sending pose to whatever is
+listening, which on their rig drives a limb.
+
+| | |
+|---|---|
+| Transport | UDP, JSON, one object per datagram (~126 bytes) |
+| Default target | `127.0.0.1:9090` (`POSE_UDP_HOST` / `POSE_UDP_PORT`) |
+| Rate | ~28-32 Hz measured (their band is 20-60) |
+| Units | metres, `+X` subject forward, `+Y` subject's left, `+Z` up |
+
+```json
+{"shoulder":[0.0,0.0,0.0], "elbow":[0.0,0.0,-0.3],
+ "wrist":[0.167,0.0,-0.499], "timestamp":1784999572.058932}
+```
+
+### Verify the coordinate frame before connecting the board
+
+**Do this first, every time the camera setup changes.** Wrong axes do not raise
+an error anywhere — nothing fails, nothing logs, the limb just gets driven the
+wrong way. It is the one bug in this integration that will not announce itself.
+
+`scripts/pose_receiver.py` stands in for the controller. Standard library only,
+so it runs on any machine without installing anything:
+
+```
+python scripts/pose_receiver.py --check     # guided: verifies each angle moves the right way
+python scripts/pose_receiver.py             # live readout of angles, rate and staleness
+```
+
+`--check` walks through four movements (bend elbow, raise forward, raise
+sideways, return to rest) and reports whether each derived angle moved in the
+direction it should. It either clears you to connect the board or tells you not
+to, with the likely causes ranked.
+
+It mirrors the real receiver's behaviour — same 300 ms staleness rule, same
+`alpha = 0.35` low-pass filter, malformed datagrams counted rather than fatal —
+so what you read here is what their controller sees.
+
+### Two pose feeds, opposite behaviour when tracking is lost
+
+This trips people up, so it is worth stating plainly. The same lost-arm event is
+reported differently to each consumer, deliberately:
+
+| | WebSocket `/ws` (the twin UI) | UDP (the control loop) |
+|---|---|---|
+| Arm lost | **keeps publishing**, `landmarks: null` + a `status` | **sends nothing at all** |
+| Why | the UI must prompt "get your arm in the camera" | silence is what stops stimulation |
+| Coordinates | normalized (no scale) | metres |
+
+Do not wire the UDP sender off the WebSocket payload, and do not "helpfully" add
+a fallback pose to the UDP path. Both would look like tidying up and both would
+break the safety model. The rule lives in `backend/pose/control_link.py`.
+
+Note the coordinate difference too: the WebSocket carries normalized landmarks,
+whose `z` sits on an unrelated scale to `x`/`y` (measured ~23x). They are fine
+for the twin, which only needs relative shape, and wrong for anything metric.
+
 ## Open items — confirm before relying on these
 
 These are coded as placeholders in `config.py` so the software runs and is
