@@ -1,0 +1,11 @@
+# Python dependencies for the FES arm controller.
+#
+# The controller and tools themselves use ONLY the standard library
+# (socket, json, threading, math, time, argparse, msvcrt/termios) - there is
+# nothing to install to run the control loop or the bench tools.
+#
+# These packages are for flashing and talking to the ESP32-S3:
+esptool>=4.7          # one-time USB flash of MicroPython
+mpremote>=1.22        # one-time file copy + serial REPL
+
+# Python 3.8 or newer.

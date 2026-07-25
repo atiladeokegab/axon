@@ -1,0 +1,14 @@
+# Never commit real credentials
+firmware/config/device_secrets.py
+
+__pycache__/
+*.pyc
+.venv/
+
+# Downloaded MicroPython firmware images (get them from micropython.org;
+# see docs/DEPLOY.md - use the SPIRAM_OCT variant for this N16R8 board)
+bin/
+*.bin
+
+# Per-subject calibration output
+calibration_ch*.json

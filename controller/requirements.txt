@@ -1,0 +1,11 @@
+# Superseded - use the project-root requirements.txt instead.
+#
+# From the repository root:
+#   py -m venv .venv                 (Windows; use python3 on macOS/Linux)
+#   .venv\Scripts\activate           (Windows)
+#   source .venv/bin/activate        (macOS / Linux)
+#   py -m pip install -r requirements.txt
+#
+# The controller itself needs only the Python standard library; the root
+# requirements file adds esptool and mpremote for flashing the board.
+-r ../requirements.txt
