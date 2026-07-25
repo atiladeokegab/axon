@@ -4,166 +4,112 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07100f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <title>Motor Recovery — Live Arm Twin</title>
   <style>
+    /* Axon.
+       One typeface, one accent, everything on an 8px rhythm. Hierarchy comes
+       from size and weight, never from ornament — the previous pass had paper
+       grain, registration marks and a display serif doing decoration rather
+       than work, which is what made it read as styled instead of designed.
+       Dark because the anatomy is lit, rounded and soft because the person
+       using it is a patient recovering from a stroke, not an operator. */
     :root {
       color-scheme: dark;
-      --ink: #edf4ec;
-      --muted: #8ea19a;
-      --dim: #566b64;
-      --panel: rgba(8, 20, 18, 0.82);
-      --line: rgba(162, 193, 181, 0.18);
-      --signal: #87f7c7;
-      --signal-soft: rgba(135, 247, 199, 0.16);
-      --alert: #ff6b4a;
-      --alert-soft: rgba(255, 107, 74, 0.17);
-      --bone: #d8d0b7;
-      --muscle: #9f302a;
-      --shadow: rgba(0, 0, 0, 0.48);
+
+      --bg:        #0a0b0d;
+      --surface:   #131519;
+      --surface-2: #1a1d23;
+      --line:      #23272f;
+
+      --text:      #f5f6f7;
+      --text-2:    #9aa1ac;
+      --text-3:    #626873;
+
+      --accent:    #5ee9a4;   /* progress, live, confirmed */
+      --accent-dim: rgba(94, 233, 164, 0.12);
+      --warn:      #ffb454;
+      --warn-dim:  rgba(255, 180, 84, 0.12);
+      --stop:      #ff6b5a;
+      --stop-dim:  rgba(255, 107, 90, 0.12);
+
+      --r-sm: 8px;
+      --r-md: 14px;
+      --r-lg: 20px;
+
+      --sans: "Manrope", -apple-system, "Segoe UI", system-ui, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
-    html,
-    body {
+    html, body {
       width: 100%;
-      min-width: 320px;
+      min-width: 340px;
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #07100f;
+      background: var(--bg);
     }
 
     body {
-      color: var(--ink);
-      font-family: Bahnschrift, "Avenir Next Condensed", "Segoe UI", sans-serif;
-      letter-spacing: 0.025em;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.011em;
+      -webkit-font-smoothing: antialiased;
     }
 
-    body::before {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      content: "";
-      background:
-        radial-gradient(circle at 72% 18%, rgba(57, 114, 96, 0.2), transparent 30%),
-        radial-gradient(circle at 18% 82%, rgba(125, 49, 36, 0.12), transparent 32%),
-        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 4px);
-      mix-blend-mode: screen;
-    }
-
-    button,
-    a {
-      color: inherit;
-    }
+    button { font: inherit; color: inherit; }
+    a { color: inherit; }
 
     .shell {
-      position: relative;
-      z-index: 1;
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto minmax(0, 1fr) auto auto;
       width: 100%;
       height: 100%;
-      padding: clamp(12px, 2vw, 28px);
-      gap: 12px;
+      padding: 20px 24px 16px;
+      gap: 16px;
     }
 
-    .topbar,
-    .footerbar {
+    /* ---------------------------------------------------------- header --- */
+
+    .topbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 20px;
       min-width: 0;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
-    .brand-mark {
-      position: relative;
-      width: 34px;
-      height: 34px;
-      border: 1px solid rgba(135, 247, 199, 0.58);
-      border-radius: 50%;
-      box-shadow: inset 0 0 18px rgba(135, 247, 199, 0.1);
-    }
-
-    .brand-mark::before,
-    .brand-mark::after {
-      position: absolute;
-      content: "";
-      background: var(--signal);
-      box-shadow: 0 0 10px rgba(135, 247, 199, 0.55);
-    }
-
-    .brand-mark::before {
-      top: 15px;
-      left: 7px;
-      width: 18px;
-      height: 2px;
-    }
-
-    .brand-mark::after {
-      top: 7px;
-      left: 15px;
-      width: 2px;
-      height: 18px;
-    }
-
-    .eyebrow,
-    .micro-label,
-    .readout-label,
-    .legend-code {
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-    }
-
-    .eyebrow {
-      margin: 0 0 2px;
-      color: var(--signal);
-      font-size: 9px;
-    }
-
-    h1 {
+    .wordmark {
       margin: 0;
-      font-size: clamp(18px, 2vw, 27px);
-      font-stretch: condensed;
-      font-weight: 600;
-      letter-spacing: 0.055em;
-      line-height: 1;
-      text-transform: uppercase;
-      white-space: nowrap;
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
     }
 
-    .state-cluster {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-      min-width: 0;
-    }
+    .brand-note { display: none; }
 
+    .state-cluster { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+    /* Status as a quiet chip. Prose, not protocol: someone wearing electrodes
+       needs to know whether current is flowing, not the name of a flag. */
     .state-pill {
       display: inline-flex;
       align-items: center;
-      min-height: 30px;
-      padding: 0 11px;
-      gap: 8px;
-      border: 1px solid var(--line);
-      background: rgba(9, 19, 18, 0.7);
-      color: var(--muted);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 9px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      height: 30px;
+      padding: 0 12px;
+      gap: 7px;
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text-2);
+      font-size: 12.5px;
+      font-weight: 600;
       white-space: nowrap;
     }
 
@@ -171,391 +117,81 @@
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: var(--dim);
-      box-shadow: 0 0 0 3px rgba(86, 107, 100, 0.1);
+      background: var(--text-3);
+      transition: background 240ms ease;
     }
 
-    .state-pill.is-live {
-      border-color: rgba(135, 247, 199, 0.34);
-      color: var(--signal);
-    }
+    .state-pill.is-live  { color: var(--text); }
+    .state-pill.is-live  .state-dot { background: var(--accent); }
+    .state-pill.is-hold  { color: var(--warn); }
+    .state-pill.is-hold  .state-dot { background: var(--warn); }
+    .state-pill.is-armed { color: var(--stop); }
+    .state-pill.is-armed .state-dot { background: var(--stop); }
 
-    .state-pill.is-live .state-dot {
-      background: var(--signal);
-      box-shadow: 0 0 12px rgba(135, 247, 199, 0.85);
-    }
+    .audio-controls { display: flex; align-items: center; gap: 6px; margin-right: 4px; }
 
-    .state-pill.is-hold {
-      border-color: rgba(244, 198, 105, 0.32);
-      color: #f4c669;
-    }
-
-    .state-pill.is-hold .state-dot {
-      background: #f4c669;
-    }
-
-    .state-pill.is-armed {
-      border-color: rgba(255, 107, 74, 0.52);
-      background: var(--alert-soft);
-      color: #ff9b82;
-    }
-
-    .state-pill.is-armed .state-dot {
-      background: var(--alert);
-      box-shadow: 0 0 12px rgba(255, 107, 74, 0.8);
-    }
-
-    .flow {
-      display: flex;
-      align-items: center;
-      min-height: 62px;
-      gap: 18px;
-      padding: 10px 4px 4px;
-      border-top: 1px solid var(--line);
-    }
-
-    .steps {
-      display: flex;
-      align-items: center;
-      margin: 0;
-      padding: 0;
-      gap: 7px;
-      list-style: none;
-    }
-
-    .steps li {
-      width: 7px;
-      height: 7px;
-      border: 1px solid var(--dim);
-      border-radius: 50%;
-      transition: background 200ms ease, border-color 200ms ease;
-    }
-
-    .steps li.is-done {
-      border-color: rgba(135, 247, 199, 0.5);
-      background: rgba(135, 247, 199, 0.45);
-    }
-
-    .steps li.is-current {
-      border-color: var(--signal);
-      background: var(--signal);
-      box-shadow: 0 0 10px rgba(135, 247, 199, 0.8);
-    }
-
-    .flow-body {
-      display: flex;
-      align-items: center;
-      flex: 1;
-      gap: 16px;
-      min-width: 0;
-    }
-
-    .flow-instruction {
-      margin: 0;
-      color: var(--ink);
-      font-size: clamp(13px, 1.35vw, 17px);
-      letter-spacing: 0.02em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .flow-choices {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      min-width: 0;
-    }
-
-    .flow-choices:empty { display: none; }
-
-    .choice {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 6px 13px;
-      gap: 1px;
-      border: 1px solid var(--line);
-      background: rgba(9, 19, 18, 0.7);
-      color: var(--muted);
-      cursor: pointer;
-      transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
-    }
-
-    .choice:hover { border-color: rgba(135, 247, 199, 0.34); color: var(--ink); }
-    .choice:focus-visible { outline: 1px solid var(--signal); outline-offset: 2px; }
-
-    .choice.is-selected {
-      border-color: rgba(135, 247, 199, 0.55);
-      background: var(--signal-soft);
-      color: var(--signal);
-    }
-
-    .choice-name {
-      font-size: 11px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .choice-sub {
-      color: var(--dim);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 7px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    /* Grip cannot be confirmed from the pose — no finger landmarks — so its
-       count is elapsed time. Shown rather than presented as if observed. */
-    .choice-unverified .choice-sub::after {
-      content: " · unverified";
-      color: #f4c669;
-    }
-
-    .flow-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .flow-count {
-      color: var(--ink);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 15px;
-      letter-spacing: 0.08em;
-      white-space: nowrap;
-    }
-
-    .flow-count[hidden] { display: none; }
-
-    .flow-primary {
-      min-height: 34px;
-      padding: 0 22px;
-      border: 1px solid rgba(135, 247, 199, 0.55);
-      background: var(--signal-soft);
-      color: var(--signal);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: background 140ms ease, color 140ms ease;
-    }
-
-    .flow-primary:hover { background: rgba(135, 247, 199, 0.26); color: var(--ink); }
-    .flow-primary:disabled { opacity: 0.35; cursor: default; }
-    .flow-primary.is-stop {
-      border-color: rgba(255, 107, 74, 0.5);
-      background: var(--alert-soft);
-      color: #ff9b82;
-    }
-
-    .flow-secondary {
-      min-height: 34px;
+    .side-option {
+      height: 30px;
       padding: 0 14px;
-      border: 1px solid var(--line);
-      background: transparent;
-      color: var(--muted);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 9px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      border: none;
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text-2);
+      font-size: 12.5px;
+      font-weight: 600;
       cursor: pointer;
+      transition: background 160ms ease, color 160ms ease;
     }
-
-    .flow-secondary[hidden] { display: none; }
-    .flow-secondary:hover { color: var(--ink); }
-
-    @media (max-width: 760px) {
-      .choice-sub { display: none; }
-      .flow-instruction { white-space: normal; }
-    }
-
-    .audio-controls {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-left: 14px;
-      min-width: 0;
-    }
+    .side-option:hover { background: var(--surface-2); color: var(--text); }
+    .side-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .side-option.is-selected { background: var(--accent-dim); color: var(--accent); }
 
     .tempo {
       display: flex;
       align-items: center;
-      gap: 7px;
+      height: 30px;
+      padding: 0 12px 0 10px;
+      gap: 8px;
+      border-radius: 999px;
+      background: var(--surface);
       opacity: 0.4;
-      transition: opacity 160ms ease;
+      transition: opacity 200ms ease;
     }
-
-    .tempo.is-live {
-      opacity: 1;
-    }
-
-    .tempo input {
-      width: 76px;
-      accent-color: var(--signal);
-      cursor: pointer;
-    }
-
+    .tempo.is-live { opacity: 1; }
+    .tempo input { width: 68px; accent-color: var(--accent); cursor: pointer; }
     .tempo span {
       min-width: 2.2em;
-      color: var(--muted);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 9px;
-      letter-spacing: 0.1em;
+      color: var(--text-2);
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
-    .side-picker {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      min-width: 0;
-    }
-
-    .side-picker-label {
-      margin-right: 4px;
-      color: var(--dim);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 8px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-    }
-
-    .side-option {
-      min-height: 30px;
-      padding: 0 12px;
-      border: 1px solid var(--line);
-      background: rgba(9, 19, 18, 0.7);
-      color: var(--muted);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 9px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
-    }
-
-    .side-option:hover {
-      border-color: rgba(135, 247, 199, 0.34);
-      color: var(--ink);
-    }
-
-    .side-option:focus-visible {
-      outline: 1px solid var(--signal);
-      outline-offset: 2px;
-    }
-
-    .side-option.is-selected {
-      border-color: rgba(135, 247, 199, 0.55);
-      background: var(--signal-soft);
-      color: var(--signal);
-    }
-
-    /* Sits over the model rather than beside it: when the arm is out of frame
-       the model is stale/frozen, so the prompt needs to interrupt it, not sit
-       politely in a corner where it reads as decoration. */
-    .prompt {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      z-index: 6;
-      display: flex;
-      align-items: center;
-      max-width: min(340px, 78%);
-      padding: 14px 18px;
-      gap: 13px;
-      border: 1px solid rgba(244, 198, 105, 0.42);
-      background: rgba(10, 20, 18, 0.9);
-      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
-
-    .prompt[hidden] {
-      display: none;
-    }
-
-    .prompt-icon {
-      flex: none;
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #f4c669;
-      box-shadow: 0 0 12px rgba(244, 198, 105, 0.8);
-      animation: signal-pulse 1100ms ease-in-out infinite;
-    }
-
-    .prompt p {
-      margin: 0;
-      color: #f7e2b4;
-      font-size: 13px;
-      letter-spacing: 0.05em;
-      line-height: 1.45;
-    }
+    /* ----------------------------------------------------------- stage --- */
 
     .stage {
-      position: relative;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.8fr 1fr;
       min-height: 0;
-      gap: 12px;
+      gap: 16px;
     }
 
-    .viewport,
-    .camera-viewport {
+    .viewport, .camera-viewport {
       position: relative;
       min-height: 0;
       overflow: hidden;
-      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+    }
+
+    .viewport {
       background:
-        linear-gradient(115deg, rgba(15, 36, 31, 0.72), rgba(4, 10, 10, 0.9) 46%),
-        #06100e;
-      box-shadow: 0 24px 70px var(--shadow);
-      isolation: isolate;
+        radial-gradient(120% 80% at 50% 0%, #181c22 0%, #0e1013 65%);
     }
 
-    .viewport::before,
-    .camera-viewport::before {
-      position: absolute;
-      inset: 14px;
-      z-index: 3;
-      pointer-events: none;
-      content: "";
-      border: 1px solid rgba(154, 191, 176, 0.08);
-    }
-
-    .viewport::after,
-    .camera-viewport::after {
-      position: absolute;
-      inset: 0;
-      z-index: 2;
-      pointer-events: none;
-      content: "";
-      background:
-        linear-gradient(90deg, rgba(135, 247, 199, 0.08) 1px, transparent 1px),
-        linear-gradient(rgba(135, 247, 199, 0.06) 1px, transparent 1px);
-      background-size: 72px 72px;
-      mask-image: radial-gradient(circle at center, black, transparent 74%);
-      opacity: 0.24;
-    }
-
-    #three-mount {
-      position: absolute;
-      inset: 0;
-      z-index: 1;
-    }
-
-    #three-mount canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-      cursor: grab;
-    }
-
-    #three-mount canvas:active {
-      cursor: grabbing;
-    }
+    #three-mount { position: absolute; inset: 0; z-index: 1; }
+    #three-mount canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+    #three-mount canvas:active { cursor: grabbing; }
 
     #camera-feed {
       position: absolute;
@@ -564,410 +200,225 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      /* Mirrored to read as a reflection, paired with the model's own mirror —
+         see armRoot.scale.x; flipping one alone puts them out of step. */
       transform: scaleX(-1);
-      background: #06100e;
+      background: var(--surface-2);
     }
 
-    .camera-title {
-      position: absolute;
-      top: clamp(32px, 5vw, 64px);
-      left: clamp(28px, 4vw, 62px);
-      z-index: 5;
-      pointer-events: none;
-    }
-
-    .camera-title h2 {
-      margin: 10px 0 0;
-      font-size: clamp(22px, 2.6vw, 34px);
-      font-stretch: condensed;
-      font-weight: 500;
-      letter-spacing: -0.03em;
-      line-height: 0.9;
-      text-transform: uppercase;
-    }
+    /* Ornament removed: no registration marks, no grain, no panel labels. */
+    .corner, .panel-tag { display: none; }
 
     .camera-status {
       position: absolute;
-      right: clamp(18px, 3vw, 32px);
-      bottom: clamp(18px, 3vw, 32px);
+      right: 12px;
+      bottom: 12px;
       z-index: 5;
+      background: rgba(10, 11, 13, 0.72);
+      backdrop-filter: blur(8px);
     }
 
-    @media (max-width: 980px) {
-      .stage {
-        grid-template-columns: 1fr;
-        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-      }
-    }
-
-    .corner {
-      position: absolute;
-      z-index: 4;
-      width: 24px;
-      height: 24px;
-      pointer-events: none;
-    }
-
-    .corner::before,
-    .corner::after {
-      position: absolute;
-      content: "";
-      background: rgba(135, 247, 199, 0.66);
-    }
-
-    .corner::before {
-      width: 24px;
-      height: 1px;
-    }
-
-    .corner::after {
-      width: 1px;
-      height: 24px;
-    }
-
-    .corner.tl { top: 14px; left: 14px; }
-    .corner.tr { top: 14px; right: 14px; transform: rotate(90deg); }
-    .corner.br { right: 14px; bottom: 14px; transform: rotate(180deg); }
-    .corner.bl { bottom: 14px; left: 14px; transform: rotate(270deg); }
-
-    .title-block {
-      position: absolute;
-      top: clamp(32px, 5vw, 64px);
-      left: clamp(28px, 4vw, 62px);
-      z-index: 5;
-      width: min(290px, 31vw);
-      pointer-events: none;
-    }
-
-    .title-index {
-      display: block;
-      margin-bottom: 14px;
-      color: rgba(135, 247, 199, 0.75);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 10px;
-      letter-spacing: 0.15em;
-    }
-
-    .title-block h2 {
-      max-width: 240px;
-      margin: 0;
-      font-size: clamp(34px, 5.2vw, 78px);
-      font-stretch: condensed;
-      font-weight: 500;
-      letter-spacing: -0.035em;
-      line-height: 0.82;
-      text-transform: uppercase;
-    }
-
-    .title-block p {
-      max-width: 230px;
-      margin: 18px 0 0;
-      color: var(--muted);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: clamp(9px, 0.85vw, 11px);
-      letter-spacing: 0.055em;
-      line-height: 1.7;
-    }
-
-    .legend {
+    /* Interrupts, because when it shows the model behind it is stale. */
+    .prompt {
       position: absolute;
       top: 50%;
-      right: clamp(26px, 4vw, 58px);
-      z-index: 5;
-      width: min(218px, 24vw);
-      padding: 15px 16px 13px;
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      background: linear-gradient(90deg, transparent, rgba(6, 14, 13, 0.66));
-      transform: translateY(-50%);
-      pointer-events: none;
-    }
-
-    .legend-heading {
+      left: 50%;
+      z-index: 6;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      color: var(--muted);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 9px;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    .legend-item {
-      display: grid;
-      grid-template-columns: 8px minmax(0, 1fr) auto;
-      align-items: center;
-      min-height: 28px;
-      gap: 9px;
-      border-top: 1px solid rgba(151, 184, 172, 0.08);
-      color: #9badA6;
-      font-size: 11px;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      transition: color 160ms ease, transform 160ms ease;
-    }
-
-    .legend-item:first-of-type {
-      border-top: 0;
-    }
-
-    .legend-swatch {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: #78332e;
-      box-shadow: 0 0 0 3px rgba(120, 51, 46, 0.12);
-    }
-
-    .legend-code {
-      color: var(--dim);
-      font-size: 7px;
-    }
-
-    .legend-item.is-active {
-      color: #ffd2c6;
-      transform: translateX(-4px);
-    }
-
-    .legend-item.is-active .legend-swatch {
-      background: var(--alert);
-      box-shadow: 0 0 14px rgba(255, 107, 74, 0.9);
-      animation: signal-pulse 720ms ease-in-out infinite;
-    }
-
-    .telemetry {
-      position: absolute;
-      right: clamp(26px, 4vw, 58px);
-      bottom: clamp(30px, 4vw, 52px);
-      z-index: 5;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(90px, 1fr));
-      width: min(286px, 32vw);
+      max-width: min(360px, 82%);
+      padding: 16px 20px;
+      gap: 13px;
+      border-radius: var(--r-md);
+      background: rgba(19, 21, 25, 0.94);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      transform: translate(-50%, -50%);
       pointer-events: none;
     }
+    .prompt[hidden] { display: none; }
 
-    .readout {
-      padding: 11px 0 9px 13px;
-      border-left: 1px solid var(--line);
+    .prompt-icon {
+      flex: none;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--warn);
+      animation: pulse 1600ms ease-in-out infinite;
     }
 
-    .readout-label {
-      display: block;
-      margin-bottom: 4px;
-      color: var(--dim);
-      font-size: 7px;
+    .prompt p { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; transform: scale(0.8); }
+      50%      { opacity: 1;   transform: scale(1); }
     }
 
-    .readout-value {
+    /* ------------------------------------------------------------ flow --- */
+
+    .flow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 24px;
+      padding: 18px 22px;
+      border-radius: var(--r-lg);
+      background: var(--surface);
+    }
+
+    /* Progress reads as a bar, not a row of dots to decode. */
+    .steps {
+      display: flex;
+      align-items: center;
+      grid-column: 1 / -1;
+      margin: 0 0 4px;
+      padding: 0;
+      gap: 5px;
+      list-style: none;
+    }
+
+    .steps li {
+      flex: 1;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--line);
+      transition: background 320ms ease;
+    }
+    .steps li.is-done    { background: var(--accent-dim); }
+    .steps li.is-current { background: var(--accent); }
+
+    .flow-body { min-width: 0; }
+
+    .flow-step {
       display: block;
-      overflow: hidden;
-      color: var(--ink);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: clamp(10px, 1vw, 13px);
+      margin-bottom: 5px;
+      color: var(--text-3);
+      font-size: 12px;
+      font-weight: 700;
       letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* The single most important thing on screen: what to do next. */
+    .flow-instruction {
+      margin: 0 0 12px;
+      font-size: clamp(21px, 2.1vw, 28px);
+      font-weight: 700;
+      letter-spacing: -0.028em;
+      line-height: 1.2;
+      overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .stimulation {
-      position: absolute;
-      left: clamp(28px, 4vw, 62px);
-      bottom: clamp(30px, 4vw, 52px);
-      z-index: 5;
-      display: flex;
-      align-items: center;
-      min-width: 190px;
-      padding: 12px 15px;
-      gap: 12px;
-      border-left: 2px solid var(--dim);
-      background: rgba(5, 13, 12, 0.5);
-      pointer-events: none;
-      transition: border-color 160ms ease, background 160ms ease;
-    }
+    .flow-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .flow-choices:empty { display: none; }
 
-    .stim-icon {
-      width: 22px;
-      height: 22px;
-      fill: none;
-      stroke: currentColor;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      stroke-width: 1.5;
-      color: var(--dim);
+    .choice {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 9px 16px;
+      gap: 1px;
+      border: none;
+      border-radius: var(--r-sm);
+      background: var(--surface-2);
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
     }
+    .choice:hover { background: #212630; color: var(--text); transform: translateY(-1px); }
+    .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .choice.is-selected { background: var(--accent-dim); color: var(--accent); }
 
-    .stimulation.is-active {
-      border-color: var(--alert);
-      background: rgba(76, 24, 18, 0.56);
-    }
+    .choice-name { font-size: 14px; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; }
+    .choice-sub  { color: var(--text-3); font-size: 11.5px; font-weight: 600; }
+    .choice.is-selected .choice-sub { color: rgba(94, 233, 164, 0.7); }
 
-    .stimulation.is-active .stim-icon {
-      color: var(--alert);
-      filter: drop-shadow(0 0 7px rgba(255, 107, 74, 0.76));
-    }
+    /* Grip has no finger landmarks to check against, so its reps are timed
+       rather than observed. Marked, not quietly presented as equivalent. */
+    .choice-unverified .choice-sub::after { content: " · unverified"; color: var(--warn); }
 
-    .micro-label {
-      display: block;
-      margin-bottom: 3px;
-      color: var(--dim);
-      font-size: 7px;
-    }
+    .flow-actions { display: flex; align-items: center; gap: 20px; }
 
-    #stim-value {
-      display: block;
-      color: var(--muted);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 11px;
-      letter-spacing: 0.09em;
-      text-transform: uppercase;
+    /* During a set this is the number that matters, so it is the biggest thing
+       in the bar. Tabular so it does not jitter as it counts. */
+    .flow-count {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
+    .flow-count[hidden] { display: none; }
 
-    .stimulation.is-active #stim-value {
-      color: #ffc0b1;
+    .flow-primary {
+      height: 48px;
+      padding: 0 32px;
+      border: none;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #06231a;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      transition: filter 160ms ease, opacity 160ms ease, transform 160ms ease;
     }
+    .flow-primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+    .flow-primary:active:not(:disabled) { transform: translateY(0); }
+    .flow-primary:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+    .flow-primary:disabled { opacity: 0.22; cursor: default; }
+    .flow-primary.is-stop { background: var(--stop); color: #2b0b06; }
 
-    .axis-note {
-      position: absolute;
-      left: 50%;
-      bottom: 17px;
-      z-index: 5;
-      color: rgba(142, 161, 154, 0.5);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 7px;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-      transform: translateX(-50%);
-      pointer-events: none;
+    .flow-secondary {
+      height: 48px;
+      padding: 0 8px;
+      border: none;
+      background: none;
+      color: var(--text-3);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
     }
+    .flow-secondary[hidden] { display: none; }
+    .flow-secondary:hover { color: var(--text); }
+
+    /* ---------------------------------------------------------- footer --- */
 
     .footerbar {
-      gap: 18px;
-      min-height: 22px;
-      color: var(--dim);
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      font-size: 7px;
-      letter-spacing: 0.08em;
-      line-height: 1.5;
-      text-transform: uppercase;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--text-3);
+      font-size: 11.5px;
+      font-weight: 500;
+    }
+    .footerbar p { margin: 0; }
+    .credit { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .credit a { text-decoration-color: var(--line); text-underline-offset: 3px; }
+    #endpoint { max-width: 30vw; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* --------------------------------------------------------- narrow --- */
+
+    @media (max-width: 1080px) {
+      .stage { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1.7fr) minmax(0, 1fr); }
     }
 
-    .footerbar p {
-      margin: 0;
-    }
-
-    .credit {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .credit a {
-      text-decoration-color: rgba(135, 247, 199, 0.35);
-      text-underline-offset: 3px;
-    }
-
-    #endpoint {
-      max-width: 42vw;
-      overflow: hidden;
-      text-align: right;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    @keyframes signal-pulse {
-      0%,
-      100% { opacity: 0.7; }
-      50% { opacity: 1; }
-    }
-
-    @media (max-width: 760px) {
-      .shell {
-        padding: 10px;
-        gap: 8px;
-      }
-
-      .brand-mark,
-      #armed-pill {
-        display: none;
-      }
-
-      .state-pill {
-        min-height: 26px;
-        padding: 0 8px;
-        font-size: 8px;
-      }
-
-      .title-block {
-        top: 35px;
-        left: 28px;
-        width: 48vw;
-      }
-
-      .title-block h2 {
-        font-size: clamp(30px, 10vw, 56px);
-      }
-
-      .title-block p {
-        display: none;
-      }
-
-      .legend {
-        top: auto;
-        right: 24px;
-        bottom: 74px;
-        width: 170px;
-        transform: none;
-      }
-
-      .legend-heading,
-      .legend-code {
-        display: none;
-      }
-
-      .legend-item {
-        min-height: 23px;
-        font-size: 9px;
-      }
-
-      .telemetry {
-        right: 24px;
-        bottom: 24px;
-        width: 170px;
-      }
-
-      .readout {
-        padding-top: 7px;
-        padding-bottom: 6px;
-      }
-
-      .stimulation {
-        left: 24px;
-        bottom: 24px;
-        min-width: 0;
-        max-width: 43vw;
-      }
-
-      .axis-note,
-      #endpoint {
-        display: none;
-      }
-
-      .footerbar {
-        min-height: 30px;
-      }
-
-      .credit {
-        white-space: normal;
-      }
+    @media (max-width: 820px) {
+      .shell { padding: 14px 14px 10px; gap: 12px; }
+      .choice-sub, #endpoint { display: none; }
+      .flow { padding: 14px 16px; gap: 14px; }
+      .flow-instruction { white-space: normal; font-size: 20px; }
+      .flow-count { font-size: 26px; }
+      .flow-primary { height: 44px; padding: 0 22px; }
+      .credit { white-space: normal; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
-        scroll-behavior: auto !important;
+      *, *::before, *::after {
         animation-duration: 0.001ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.001ms !important;
@@ -978,63 +429,72 @@
 <body>
   <main class="shell">
     <header class="topbar">
-
-      <div class="audio-controls" role="group" aria-label="Audio coaching">
-        <button type="button" class="side-option" id="voice-toggle" aria-pressed="false">Voice</button>
-        <button type="button" class="side-option" id="metronome-toggle" aria-pressed="false">Pace</button>
-        <label class="tempo" for="tempo">
-          <input type="range" id="tempo" min="30" max="100" step="5" value="60">
-          <span id="tempo-readout">60</span>
-        </label>
+      <div class="brand">
+        <h1 class="wordmark">Axon</h1>
+        <span class="brand-note">Motor recovery</span>
       </div>
-      <div class="state-cluster" aria-live="polite">
-        <span class="state-pill" id="connection-pill">
-          <span class="state-dot"></span>
-          <span id="connection-label">Connecting</span>
-        </span>
-        <span class="state-pill" id="tracking-pill">
-          <span class="state-dot"></span>
-          <span id="tracking-label">Awaiting pose</span>
-        </span>
-        <span class="state-pill" id="armed-pill">
-          <span class="state-dot"></span>
-          <span id="armed-label">Mode unknown</span>
-        </span>
+
+      <div class="state-cluster">
+        <div class="audio-controls" role="group" aria-label="Audio coaching">
+          <button type="button" class="side-option" id="voice-toggle" aria-pressed="false">Voice</button>
+          <button type="button" class="side-option" id="metronome-toggle" aria-pressed="false">Pace</button>
+          <label class="tempo" for="tempo">
+            <input type="range" id="tempo" min="30" max="100" step="5" value="60" aria-label="Pace, beats per minute">
+            <span id="tempo-readout">60</span>
+          </label>
+        </div>
+
+        <div class="state-cluster" aria-live="polite">
+          <span class="state-pill" id="connection-pill">
+            <span class="state-dot"></span>
+            <span id="connection-label">Connecting</span>
+          </span>
+          <span class="state-pill" id="tracking-pill">
+            <span class="state-dot"></span>
+            <span id="tracking-label">Looking for you</span>
+          </span>
+          <span class="state-pill" id="armed-pill">
+            <span class="state-dot"></span>
+            <span id="armed-label">Checking mode</span>
+          </span>
+        </div>
       </div>
     </header>
 
     <div class="stage">
-    <section class="viewport" id="viewport" aria-label="Live three-dimensional arm pose">
-      <div id="three-mount"></div>
-      <span class="corner tl"></span>
-      <span class="corner tr"></span>
-      <span class="corner br"></span>
-      <span class="corner bl"></span>
+      <section class="viewport" id="viewport" aria-label="Anatomical arm model">
+        <div id="three-mount"></div>
+        <span class="corner tl"></span>
+        <span class="corner tr"></span>
+        <span class="corner br"></span>
+        <span class="corner bl"></span>
 
-      <div class="prompt" id="prompt" hidden aria-live="assertive">
-        <span class="prompt-icon" aria-hidden="true"></span>
-        <p id="prompt-text">Get your arm in the camera</p>
-      </div>
-    </section>
+        <div class="prompt" id="prompt" hidden aria-live="assertive">
+          <span class="prompt-icon" aria-hidden="true"></span>
+          <p id="prompt-text">Get your arm in the camera</p>
+        </div>
+      </section>
 
-    <section class="camera-viewport" id="camera-viewport" aria-label="Live camera feed">
-      <img id="camera-feed" alt="">
-      <span class="corner tl"></span>
-      <span class="corner tr"></span>
-      <span class="corner br"></span>
-      <span class="corner bl"></span>
+      <section class="camera-viewport" id="camera-viewport" aria-label="Camera">
+        <img id="camera-feed" alt="">
+        <span class="corner tl"></span>
+        <span class="corner tr"></span>
+        <span class="corner br"></span>
+        <span class="corner bl"></span>
+        <span class="panel-tag">Camera</span>
 
-      <span class="state-pill camera-status" id="camera-status-pill">
-        <span class="state-dot"></span>
-        <span id="camera-status-label">Requesting camera…</span>
-      </span>
-    </section>
+        <span class="state-pill camera-status" id="camera-status-pill">
+          <span class="state-dot"></span>
+          <span id="camera-status-label">Connecting…</span>
+        </span>
+      </section>
     </div>
 
     <section class="flow" id="flow" aria-label="Guided session">
       <ol class="steps" id="steps" aria-label="Progress"></ol>
 
       <div class="flow-body">
+        <span class="flow-step" id="flow-step">Step 1 of 4</span>
         <p class="flow-instruction" id="flow-instruction" aria-live="polite"></p>
         <div class="flow-choices" id="flow-choices"></div>
       </div>
@@ -1042,17 +502,17 @@
       <div class="flow-actions">
         <span class="flow-count" id="flow-count" hidden></span>
         <button type="button" class="flow-secondary" id="flow-back" hidden>Back</button>
-        <button type="button" class="flow-primary" id="flow-next">Start</button>
+        <button type="button" class="flow-primary" id="flow-next">Begin</button>
       </div>
     </section>
 
     <footer class="footerbar">
       <p class="credit">
-        Anatomy reference:
+        Anatomy:
         <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/" target="_blank" rel="noreferrer">
           BodyParts3D © The Database Center for Life Science
         </a>
-        — per-asset license/source in <code>frontend/assets/THIRD_PARTY_ASSETS.md</code> · procedural muscle fallback where unavailable
+        — per-asset licence in <code>frontend/assets/THIRD_PARTY_ASSETS.md</code>
       </p>
       <p id="endpoint">WS /ws</p>
     </footer>
@@ -1274,7 +734,7 @@
     // Padding between the arm and the viewport edge (1.0 = flush). Generous
     // because the panel also draws a decorative inset frame ~14px in, and the
     // arm reaching that line reads as touching the wall of its box.
-    const CAMERA_FOV_MARGIN = 1.3;
+    const CAMERA_FOV_MARGIN = 1.14;
     const CAMERA_FOV_MIN = 24;
     const CAMERA_FOV_MAX = 82;
     // Asymmetric on purpose. Widening is a correctness deadline — the arm is
@@ -1295,7 +755,10 @@
     // model shimmering rather than as zooming. Widening still applies
     // immediately, because that one is about not clipping; narrowing has to beat
     // this threshold before the view will move at all.
-    const FOV_CONTRACT_DEADBAND_DEG = 10;
+    // Wide enough that ordinary movement does not rescale the scene, narrow
+    // enough that the view still tightens onto a compact pose — at 10 it could
+    // not close a 5-degree gap and simply sat too wide.
+    const FOV_CONTRACT_DEADBAND_DEG = 4;
     let targetCameraFov = camera.fov;
 
     const framingBox = new THREE.Box3();
@@ -2087,12 +1550,12 @@
       trackingPill.classList.remove("is-live", "is-hold");
       if (state === "live") {
         trackingPill.classList.add("is-live");
-        trackingLabel.textContent = "Pose live";
+        trackingLabel.textContent = `Following your ${selectedSide} arm`;
       } else if (state === "hold") {
         trackingPill.classList.add("is-hold");
-        trackingLabel.textContent = "Pose held";
+        trackingLabel.textContent = "Lost you — holding";
       } else {
-        trackingLabel.textContent = "Awaiting pose";
+        trackingLabel.textContent = "Looking for you";
       }
     }
 
@@ -2422,7 +1885,7 @@
     // the shoulder at the origin.
     const EXERCISES = [
       {
-        id: "elbow_flexion", name: "Elbow flexion", muscle: "Bicep",
+        id: "elbow_flexion", intro: "intro_elbow_flexion", name: "Elbow flexion", muscle: "Bicep",
         motion: "raise", target: "bicep", cue: "motion_raise",
         metric: "elbowFlex", restBelow: 35, repAbove: 70,
         reps: 8, bpm: 50, verified: true,
@@ -2430,7 +1893,7 @@
                 peak: { e: [0.15, -1.20, 0], w: [0.30, -1.30, 0.95] } },
       },
       {
-        id: "elbow_extension", name: "Elbow extension", muscle: "Tricep",
+        id: "elbow_extension", intro: "intro_elbow_extension", name: "Elbow extension", muscle: "Tricep",
         motion: "lower", target: "tricep", cue: "motion_lower",
         // Inverted sense: the movement being trained is the arm STRAIGHTENING,
         // so the rep completes as the angle falls, not as it rises.
@@ -2440,7 +1903,7 @@
                 peak: { e: [0.15, -1.20, 0], w: [0.25, -2.20, 0] } },
       },
       {
-        id: "shoulder_flexion", name: "Forward reach", muscle: "Front delt",
+        id: "shoulder_flexion", intro: "intro_shoulder_flexion", name: "Forward reach", muscle: "Front delt",
         motion: "push_forward", target: "frontDelt", cue: "motion_push_forward",
         metric: "shoulderFlex", restBelow: 20, repAbove: 60,
         reps: 6, bpm: 40, verified: true,
@@ -2448,7 +1911,7 @@
                 peak: { e: [0.15, -0.25, 1.15], w: [0.25, -0.15, 2.15] } },
       },
       {
-        id: "shoulder_extension", name: "Pull back", muscle: "Rear delt",
+        id: "shoulder_extension", intro: "intro_shoulder_extension", name: "Pull back", muscle: "Rear delt",
         motion: "pull_back", target: "rearDelt", cue: "motion_pull_back",
         metric: "shoulderFlex", restBelow: -25, repAbove: -5, fromBelow: true,
         reps: 6, bpm: 40, verified: true,
@@ -2456,7 +1919,7 @@
                 peak: { e: [0.15, -1.05, -0.6], w: [0.25, -1.85, -1.2] } },
       },
       {
-        id: "grip", name: "Grip", muscle: "Wrist flexor",
+        id: "grip", intro: "intro_grip", name: "Grip", muscle: "Wrist flexor",
         motion: "grip", target: "forearmFlexor", cue: "motion_grip",
         // No finger landmarks exist in MediaPipe Pose, so there is nothing to
         // measure. Counted on the clock and labelled unverified rather than
@@ -2470,8 +1933,11 @@
     const DEMO_CYCLES = 2;
     const DEMO_CYCLE_MS = 2600;
     const BEATS_PER_REP = 4;   // one bar per repetition
+    // How long a set can stall before the coach offers a reason why.
+    const STALL_HINT_MS = 9000;
 
     const stepsList = document.querySelector("#steps");
+    const flowStep = document.querySelector("#flow-step");
     const flowInstruction = document.querySelector("#flow-instruction");
     const flowChoices = document.querySelector("#flow-choices");
     const flowCount = document.querySelector("#flow-count");
@@ -2514,10 +1980,14 @@
         // Rep detection needs the angle to reach the top before a return can
         // count, so a session never opens already half-way through a rep.
         armed: false,
+        hinted: false,
+        lastRepAt: null,
         lastBeat: -1,
       };
 
-      speak("begin", { force: true });
+      // What this exercise trains and the form mistake it invites, spoken over
+      // the demonstration — people stay with rehab they understand.
+      speak(exercise.intro, { force: true });
       paintSession();
 
       // Pace at the exercise's own tempo. Left running through the demo so the
@@ -2588,8 +2058,11 @@
       return button;
     }
 
+    const STEP_TITLE = { arm: "Set up", pads: "Place the pads", exercise: "Choose", session: "Session" };
+
     function paintFlow() {
       renderSteps();
+      flowStep.textContent = STEP_TITLE[stepName()];
       flowChoices.replaceChildren();
       flowCount.hidden = true;
       flowBack.hidden = flow.step === 0;
@@ -2607,7 +2080,7 @@
             () => { flow.arm = side; applySideSelection(side); paintFlow(); },
           ));
         }
-        flowNext.textContent = "Next";
+        flowNext.textContent = "Continue";
         // Nothing to advance to until a side is chosen: the pad walkthrough
         // and the meshes both depend on knowing which arm this is.
         flowNext.disabled = flow.arm === null;
@@ -2620,7 +2093,7 @@
           `${PAD_LABEL[pad]} — ${voiceManifest?.[PAD_CUE[pad]]?.text ?? "place the pad on the highlighted muscle"}`;
         flowCount.hidden = false;
         flowCount.textContent = `${flow.padIndex + 1} / ${PAD_ORDER.length}`;
-        flowNext.textContent = flow.padIndex === PAD_ORDER.length - 1 ? "Done" : "Placed";
+        flowNext.textContent = flow.padIndex === PAD_ORDER.length - 1 ? "All placed" : "Placed";
         return;
       }
 
@@ -2760,8 +2233,20 @@
       };
     }
 
+    // Said after a rep, not on every one. Constant praise stops carrying
+    // information; these are spaced so that hearing one still means something.
+    function encouragementFor(done, total) {
+      if (done === Math.ceil(total / 2)) return "enc_halfway";
+      if (done === total - 2) return "enc_almost";
+      if (done === 3) return "enc_good_form";
+      if (done === 6) return "enc_keep_going";
+      return null;
+    }
+
     function completeRep() {
       session.reps += 1;
+      session.lastRepAt = performance.now();
+      session.hinted = false;
       const remaining = session.exercise.reps - session.reps;
 
       if (session.reps <= 10) speak(`count_${session.reps}`, { force: true });
@@ -2769,12 +2254,21 @@
 
       if (remaining === 0) {
         session.phase = "done";
-        speak("complete", { force: true });
+        speak("enc_strong_finish", { force: true });
+        window.setTimeout(() => speak("complete", { force: true }), 1400);
         paintSession();
-        window.setTimeout(() => stopSession({ silent: true }), 2600);
-      } else if (remaining === 1) {
-        window.setTimeout(() => speak("last_one", { force: true }), 700);
+        window.setTimeout(() => stopSession({ silent: true }), 4200);
+        return;
       }
+
+      if (remaining === 1) {
+        window.setTimeout(() => speak("last_one", { force: true }), 800);
+        return;
+      }
+
+      const cue = encouragementFor(session.reps, session.exercise.reps);
+      // Delayed past the count so the two are not spoken over each other.
+      if (cue) window.setTimeout(() => speak(cue, { force: true }), 900);
     }
 
     // Called once per rendered frame with the pose currently on screen.
@@ -2788,7 +2282,9 @@
         if (demoing) return;
         session.phase = "go";
         session.startedAt = performance.now();
-        speak(exercise.cue, { force: true });
+        speak("your_turn", { force: true });
+        // The movement cue lands after the handover, so the two do not overlap.
+        window.setTimeout(() => speak(exercise.cue, { force: true }), 1200);
         paintSession();
         return;
       }
@@ -2830,6 +2326,16 @@
       if (reached) {
         session.armed = false;
         completeRep();
+        return;
+      }
+
+      // Armed but nothing completing. Usually the movement is not reaching far
+      // enough to count, which the patient has no way of knowing — silence here
+      // reads as the system being broken rather than as feedback.
+      const since = performance.now() - (session.lastRepAt ?? session.startedAt);
+      if (since > STALL_HINT_MS && !session.hinted) {
+        session.hinted = true;
+        speak(value > exercise.restBelow ? "try_fuller" : "take_a_moment", { force: true });
       }
     }
 
@@ -2939,19 +2445,19 @@
       connectionPill.classList.remove("is-live", "is-hold");
       if (state === "live") {
         connectionPill.classList.add("is-live");
-        connectionLabel.textContent = "WS live";
+        connectionLabel.textContent = "Connected";
       } else if (state === "connecting") {
         connectionPill.classList.add("is-hold");
         connectionLabel.textContent = "Connecting";
       } else {
-        connectionLabel.textContent = "WS offline";
+        connectionLabel.textContent = "Disconnected";
       }
     }
 
     function setArmedState(armed) {
       armedPill.classList.toggle("is-armed", armed);
       armedPill.classList.toggle("is-live", !armed);
-      armedLabel.textContent = armed ? "Hardware armed" : "Mock actuation";
+      armedLabel.textContent = armed ? "Live current" : "Practice mode — no current";
     }
 
     function websocketUrl() {
@@ -3164,6 +2670,7 @@
     // Loaded regardless of whether voice is on: the flow shows each cue's text
     // on screen, so the wording has to exist even in silence.
     loadVoiceManifest().then(paintFlow);
+
 
 
     window.addEventListener("pagehide", () => {

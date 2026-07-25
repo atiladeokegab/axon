@@ -67,6 +67,26 @@
     "file": "count_9.mp3",
     "text": "nine"
   },
+  "enc_almost": {
+    "file": "enc_almost.mp3",
+    "text": "Nearly there."
+  },
+  "enc_good_form": {
+    "file": "enc_good_form.mp3",
+    "text": "That's it. Same again."
+  },
+  "enc_halfway": {
+    "file": "enc_halfway.mp3",
+    "text": "Halfway. You're doing well."
+  },
+  "enc_keep_going": {
+    "file": "enc_keep_going.mp3",
+    "text": "Good. Keep that rhythm."
+  },
+  "enc_strong_finish": {
+    "file": "enc_strong_finish.mp3",
+    "text": "Strong finish."
+  },
   "good": {
     "file": "good.mp3",
     "text": "Good."
@@ -74,6 +94,26 @@
   "hold": {
     "file": "hold.mp3",
     "text": "Hold."
+  },
+  "intro_elbow_extension": {
+    "file": "intro_elbow_extension.mp3",
+    "text": "Elbow extension. This trains the tricep to straighten your arm. After a stroke this is usually the harder direction, so take it slowly."
+  },
+  "intro_elbow_flexion": {
+    "file": "intro_elbow_flexion.mp3",
+    "text": "Elbow flexion. This trains the bicep to bend your arm. Keep your upper arm still and let the forearm do the work."
+  },
+  "intro_grip": {
+    "file": "intro_grip.mp3",
+    "text": "Grip. Closing and opening your hand. I can't see your fingers, so I'll pace you and you count with me."
+  },
+  "intro_shoulder_extension": {
+    "file": "intro_shoulder_extension.mp3",
+    "text": "Pull back. This works the back of your shoulder, and balances the forward reach. Draw your elbow behind you."
+  },
+  "intro_shoulder_flexion": {
+    "file": "intro_shoulder_flexion.mp3",
+    "text": "Forward reach. This is the movement behind reaching for a cup or a door handle. Lead with your hand, and keep your shoulder down."
   },
   "last_one": {
     "file": "last_one.mp3",
@@ -159,9 +199,17 @@
     "file": "stopping.mp3",
     "text": "Stopping."
   },
+  "take_a_moment": {
+    "file": "take_a_moment.mp3",
+    "text": "Take a moment. Start again when you're ready."
+  },
   "three_more": {
     "file": "three_more.mp3",
     "text": "Three more."
+  },
+  "try_fuller": {
+    "file": "try_fuller.mp3",
+    "text": "Try a fuller movement \u2014 go a little further."
   },
   "two_more": {
     "file": "two_more.mp3",

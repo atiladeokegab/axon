@@ -89,6 +89,27 @@ CUES = {
     "watch_first":      "Watch the model first.",
     "your_turn":        "Your turn.",
 
+    # Per-exercise walkthrough. Each one gets: what it trains and why it
+    # matters (people stick with rehab they understand), then a form cue for
+    # the mistake that exercise actually invites.
+    "intro_elbow_flexion":  "Elbow flexion. This trains the bicep to bend your arm. Keep your upper arm still and let the forearm do the work.",
+    "intro_elbow_extension": "Elbow extension. This trains the tricep to straighten your arm. After a stroke this is usually the harder direction, so take it slowly.",
+    "intro_shoulder_flexion": "Forward reach. This is the movement behind reaching for a cup or a door handle. Lead with your hand, and keep your shoulder down.",
+    "intro_shoulder_extension": "Pull back. This works the back of your shoulder, and balances the forward reach. Draw your elbow behind you.",
+    "intro_grip":           "Grip. Closing and opening your hand. I can't see your fingers, so I'll pace you and you count with me.",
+
+    # Encouragement mid-set. Deliberately plain — over-praising every rep stops
+    # meaning anything, so these are used sparingly and never twice running.
+    "enc_good_form":        "That's it. Same again.",
+    "enc_keep_going":       "Good. Keep that rhythm.",
+    "enc_halfway":          "Halfway. You're doing well.",
+    "enc_almost":           "Nearly there.",
+    "enc_strong_finish":    "Strong finish.",
+
+    # When a rep does not register, which is information rather than failure.
+    "try_fuller":           "Try a fuller movement — go a little further.",
+    "take_a_moment":        "Take a moment. Start again when you're ready.",
+
     # Safety
     "stopping":         "Stopping.",
 
