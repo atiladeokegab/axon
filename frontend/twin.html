@@ -40,6 +40,12 @@
       --r-lg: 20px;
 
       --sans: "Manrope", -apple-system, "Segoe UI", system-ui, sans-serif;
+
+      /* The built-in CSS easings are too weak to read as intentional. These
+         are the stronger variants; ease-in is deliberately absent, because it
+         delays the initial movement — the exact moment the user is watching. */
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     }
 
     * { box-sizing: border-box; }
@@ -118,7 +124,7 @@
       height: 6px;
       border-radius: 50%;
       background: var(--text-3);
-      transition: background 240ms ease;
+      transition: background 200ms var(--ease-out);
     }
 
     .state-pill.is-live  { color: var(--text); }
@@ -140,9 +146,16 @@
       font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 160ms ease, color 160ms ease;
+      transition:
+        background 160ms var(--ease-out),
+        color 160ms var(--ease-out),
+        transform 120ms var(--ease-out);
     }
-    .side-option:hover { background: var(--surface-2); color: var(--text); }
+    /* Instant confirmation that the press landed. */
+    .side-option:active { transform: scale(0.96); }
+    @media (hover: hover) and (pointer: fine) {
+      .side-option:hover { background: var(--surface-2); color: var(--text); }
+    }
     .side-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .side-option.is-selected { background: var(--accent-dim); color: var(--accent); }
 
@@ -155,7 +168,7 @@
       border-radius: 999px;
       background: var(--surface);
       opacity: 0.4;
-      transition: opacity 200ms ease;
+      transition: opacity 200ms var(--ease-out);
     }
     .tempo.is-live { opacity: 1; }
     .tempo input { width: 68px; accent-color: var(--accent); cursor: pointer; }
@@ -233,10 +246,29 @@
       background: rgba(19, 21, 25, 0.94);
       box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(12px);
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
       pointer-events: none;
+      transition:
+        opacity 200ms var(--ease-out),
+        transform 200ms var(--ease-out),
+        display 200ms allow-discrete;
     }
-    .prompt[hidden] { display: none; }
+
+    /* Never from scale(0) — nothing in the real world appears out of nothing.
+       0.96 keeps it recognisably present before it settles. */
+    @starting-style {
+      .prompt {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.96);
+      }
+    }
+
+    .prompt[hidden] {
+      display: none;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.96);
+    }
 
     .prompt-icon {
       flex: none;
@@ -282,7 +314,7 @@
       height: 3px;
       border-radius: 999px;
       background: var(--line);
-      transition: background 320ms ease;
+      transition: background 240ms var(--ease-out);
     }
     .steps li.is-done    { background: var(--accent-dim); }
     .steps li.is-current { background: var(--accent); }
@@ -325,9 +357,32 @@
       background: var(--surface-2);
       color: var(--text-2);
       cursor: pointer;
-      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+      transition:
+        background 160ms var(--ease-out),
+        color 160ms var(--ease-out),
+        transform 140ms var(--ease-out);
+      /* Enters with the flow step rather than popping in. */
+      animation: choice-in 260ms var(--ease-out) backwards;
     }
-    .choice:hover { background: #212630; color: var(--text); transform: translateY(-1px); }
+    .choice:active { transform: scale(0.97); }
+    /* Gated: touch devices fire hover on tap, which would stick the lift on. */
+    @media (hover: hover) and (pointer: fine) {
+      .choice:hover { background: #212630; color: var(--text); transform: translateY(-1px); }
+      .choice:hover:active { transform: scale(0.97); }
+    }
+
+    /* Short delays only — long staggers make an interface feel slow, and this
+       one must never hold up a press. */
+    .choice:nth-child(1) { animation-delay: 0ms; }
+    .choice:nth-child(2) { animation-delay: 40ms; }
+    .choice:nth-child(3) { animation-delay: 80ms; }
+    .choice:nth-child(4) { animation-delay: 120ms; }
+    .choice:nth-child(5) { animation-delay: 160ms; }
+
+    @keyframes choice-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
     .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .choice.is-selected { background: var(--accent-dim); color: var(--accent); }
 
@@ -364,10 +419,17 @@
       font-weight: 700;
       letter-spacing: -0.01em;
       cursor: pointer;
-      transition: filter 160ms ease, opacity 160ms ease, transform 160ms ease;
+      /* transform and opacity only: both skip layout and paint. */
+      transition:
+        transform 140ms var(--ease-out),
+        opacity 160ms var(--ease-out),
+        background 160ms var(--ease-out);
     }
-    .flow-primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
-    .flow-primary:active:not(:disabled) { transform: translateY(0); }
+    .flow-primary:active:not(:disabled) { transform: scale(0.97); }
+    @media (hover: hover) and (pointer: fine) {
+      .flow-primary:hover:not(:disabled) { transform: translateY(-1px); }
+      .flow-primary:hover:active:not(:disabled) { transform: scale(0.97); }
+    }
     .flow-primary:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
     .flow-primary:disabled { opacity: 0.22; cursor: default; }
     .flow-primary.is-stop { background: var(--stop); color: #2b0b06; }
@@ -383,7 +445,11 @@
       cursor: pointer;
     }
     .flow-secondary[hidden] { display: none; }
-    .flow-secondary:hover { color: var(--text); }
+    .flow-secondary { transition: color 140ms var(--ease-out), transform 120ms var(--ease-out); }
+    .flow-secondary:active { transform: scale(0.96); }
+    @media (hover: hover) and (pointer: fine) {
+      .flow-secondary:hover { color: var(--text); }
+    }
 
     /* ---------------------------------------------------------- footer --- */
 
@@ -417,12 +483,18 @@
       .credit { white-space: normal; }
     }
 
+    /* Reduced motion means fewer and gentler, not none: colour and opacity
+       still carry meaning here (which pad is live, whether tracking is held),
+       so only movement is removed. */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.001ms !important;
         animation-iteration-count: 1 !important;
-        transition-duration: 0.001ms !important;
+        transition-property: opacity, background-color, color, background !important;
+        transition-duration: 140ms !important;
       }
+      .choice:active, .side-option:active, .flow-primary:active, .flow-secondary:active,
+      .choice:hover, .flow-primary:hover { transform: none !important; }
     }
   </style>
 </head>
