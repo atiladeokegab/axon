@@ -1963,9 +1963,10 @@
     // round trip and can be misheard; the on-screen Stop button stays the
     // guaranteed one. See docs/VOICE_AGENT.md for the dashboard setup.
 
-    // Passed as ?agent=<id> so it can be pointed at a different agent without
-    // editing the page. Empty means the feature is simply unavailable.
-    const AGENT_ID = new URLSearchParams(window.location.search).get("agent") || "";
+    // Defaults to the Axon coach agent so opening the page needs no URL param;
+    // ?agent=<id> can still override it to point at a different agent.
+    const DEFAULT_AGENT_ID = "agent_5601kydjajk9fnqtvwyn2ed4tmnd";
+    const AGENT_ID = new URLSearchParams(window.location.search).get("agent") || DEFAULT_AGENT_ID;
 
     const agentToggle = document.querySelector("#agent-toggle");
     let conversation = null;
@@ -2103,6 +2104,13 @@
     if (!AGENT_ID) agentToggle.disabled = true;
 
     window.addEventListener("pagehide", () => { stopAgent(); });
+
+    // Zero-click: the coach greets the patient itself instead of waiting for
+    // a Talk press, since the hand they'd click with may be the impaired one.
+    // Most browsers allow getUserMedia to run without a click (the mic prompt
+    // itself isn't gesture-gated); if a browser blocks it anyway, startAgent's
+    // existing catch leaves the Talk button as a one-tap fallback.
+    if (AGENT_ID) startAgent();
 
     // --- Guided exercise sessions -------------------------------------------
     //
