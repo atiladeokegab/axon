@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+models/
+scratch_*.png
+scratch_*.png.b64
+
+# Calibration photos and the pad-placement overlays drawn on them are pictures
+# of a real person's arm (the protocol calls for sleeves-off shots). Kept out of
+# git history so adding a remote later can't publish them — history rewrites are
+# the only way back once they're committed.
+calib_*.png
+demo_overlay_*.png

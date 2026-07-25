@@ -1,0 +1,2158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07100f">
+  <title>Motor Recovery — Live Arm Twin</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #edf4ec;
+      --muted: #8ea19a;
+      --dim: #566b64;
+      --panel: rgba(8, 20, 18, 0.82);
+      --line: rgba(162, 193, 181, 0.18);
+      --signal: #87f7c7;
+      --signal-soft: rgba(135, 247, 199, 0.16);
+      --alert: #ff6b4a;
+      --alert-soft: rgba(255, 107, 74, 0.17);
+      --bone: #d8d0b7;
+      --muscle: #9f302a;
+      --shadow: rgba(0, 0, 0, 0.48);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-width: 320px;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #07100f;
+    }
+
+    body {
+      color: var(--ink);
+      font-family: Bahnschrift, "Avenir Next Condensed", "Segoe UI", sans-serif;
+      letter-spacing: 0.025em;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      content: "";
+      background:
+        radial-gradient(circle at 72% 18%, rgba(57, 114, 96, 0.2), transparent 30%),
+        radial-gradient(circle at 18% 82%, rgba(125, 49, 36, 0.12), transparent 32%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 4px);
+      mix-blend-mode: screen;
+    }
+
+    button,
+    a {
+      color: inherit;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      width: 100%;
+      height: 100%;
+      padding: clamp(12px, 2vw, 28px);
+      gap: 12px;
+    }
+
+    .topbar,
+    .footerbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(135, 247, 199, 0.58);
+      border-radius: 50%;
+      box-shadow: inset 0 0 18px rgba(135, 247, 199, 0.1);
+    }
+
+    .brand-mark::before,
+    .brand-mark::after {
+      position: absolute;
+      content: "";
+      background: var(--signal);
+      box-shadow: 0 0 10px rgba(135, 247, 199, 0.55);
+    }
+
+    .brand-mark::before {
+      top: 15px;
+      left: 7px;
+      width: 18px;
+      height: 2px;
+    }
+
+    .brand-mark::after {
+      top: 7px;
+      left: 15px;
+      width: 2px;
+      height: 18px;
+    }
+
+    .eyebrow,
+    .micro-label,
+    .readout-label,
+    .legend-code {
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--signal);
+      font-size: 9px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(18px, 2vw, 27px);
+      font-stretch: condensed;
+      font-weight: 600;
+      letter-spacing: 0.055em;
+      line-height: 1;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .state-cluster {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .state-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 11px;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: rgba(9, 19, 18, 0.7);
+      color: var(--muted);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .state-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--dim);
+      box-shadow: 0 0 0 3px rgba(86, 107, 100, 0.1);
+    }
+
+    .state-pill.is-live {
+      border-color: rgba(135, 247, 199, 0.34);
+      color: var(--signal);
+    }
+
+    .state-pill.is-live .state-dot {
+      background: var(--signal);
+      box-shadow: 0 0 12px rgba(135, 247, 199, 0.85);
+    }
+
+    .state-pill.is-hold {
+      border-color: rgba(244, 198, 105, 0.32);
+      color: #f4c669;
+    }
+
+    .state-pill.is-hold .state-dot {
+      background: #f4c669;
+    }
+
+    .state-pill.is-armed {
+      border-color: rgba(255, 107, 74, 0.52);
+      background: var(--alert-soft);
+      color: #ff9b82;
+    }
+
+    .state-pill.is-armed .state-dot {
+      background: var(--alert);
+      box-shadow: 0 0 12px rgba(255, 107, 74, 0.8);
+    }
+
+    .side-picker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .side-picker-label {
+      margin-right: 4px;
+      color: var(--dim);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 8px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .side-option {
+      min-height: 30px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      background: rgba(9, 19, 18, 0.7);
+      color: var(--muted);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+    }
+
+    .side-option:hover {
+      border-color: rgba(135, 247, 199, 0.34);
+      color: var(--ink);
+    }
+
+    .side-option:focus-visible {
+      outline: 1px solid var(--signal);
+      outline-offset: 2px;
+    }
+
+    .side-option.is-selected {
+      border-color: rgba(135, 247, 199, 0.55);
+      background: var(--signal-soft);
+      color: var(--signal);
+    }
+
+    /* Sits over the model rather than beside it: when the arm is out of frame
+       the model is stale/frozen, so the prompt needs to interrupt it, not sit
+       politely in a corner where it reads as decoration. */
+    .prompt {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      max-width: min(340px, 78%);
+      padding: 14px 18px;
+      gap: 13px;
+      border: 1px solid rgba(244, 198, 105, 0.42);
+      background: rgba(10, 20, 18, 0.9);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .prompt[hidden] {
+      display: none;
+    }
+
+    .prompt-icon {
+      flex: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #f4c669;
+      box-shadow: 0 0 12px rgba(244, 198, 105, 0.8);
+      animation: signal-pulse 1100ms ease-in-out infinite;
+    }
+
+    .prompt p {
+      margin: 0;
+      color: #f7e2b4;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      line-height: 1.45;
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 0;
+      gap: 12px;
+    }
+
+    .viewport,
+    .camera-viewport {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(115deg, rgba(15, 36, 31, 0.72), rgba(4, 10, 10, 0.9) 46%),
+        #06100e;
+      box-shadow: 0 24px 70px var(--shadow);
+      isolation: isolate;
+    }
+
+    .viewport::before,
+    .camera-viewport::before {
+      position: absolute;
+      inset: 14px;
+      z-index: 3;
+      pointer-events: none;
+      content: "";
+      border: 1px solid rgba(154, 191, 176, 0.08);
+    }
+
+    .viewport::after,
+    .camera-viewport::after {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      content: "";
+      background:
+        linear-gradient(90deg, rgba(135, 247, 199, 0.08) 1px, transparent 1px),
+        linear-gradient(rgba(135, 247, 199, 0.06) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: radial-gradient(circle at center, black, transparent 74%);
+      opacity: 0.24;
+    }
+
+    #three-mount {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    #three-mount canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    #three-mount canvas:active {
+      cursor: grabbing;
+    }
+
+    #camera-feed {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      background: #06100e;
+    }
+
+    .camera-title {
+      position: absolute;
+      top: clamp(32px, 5vw, 64px);
+      left: clamp(28px, 4vw, 62px);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .camera-title h2 {
+      margin: 10px 0 0;
+      font-size: clamp(22px, 2.6vw, 34px);
+      font-stretch: condensed;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 0.9;
+      text-transform: uppercase;
+    }
+
+    .camera-status {
+      position: absolute;
+      right: clamp(18px, 3vw, 32px);
+      bottom: clamp(18px, 3vw, 32px);
+      z-index: 5;
+    }
+
+    @media (max-width: 980px) {
+      .stage {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
+
+    .corner {
+      position: absolute;
+      z-index: 4;
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
+    }
+
+    .corner::before,
+    .corner::after {
+      position: absolute;
+      content: "";
+      background: rgba(135, 247, 199, 0.66);
+    }
+
+    .corner::before {
+      width: 24px;
+      height: 1px;
+    }
+
+    .corner::after {
+      width: 1px;
+      height: 24px;
+    }
+
+    .corner.tl { top: 14px; left: 14px; }
+    .corner.tr { top: 14px; right: 14px; transform: rotate(90deg); }
+    .corner.br { right: 14px; bottom: 14px; transform: rotate(180deg); }
+    .corner.bl { bottom: 14px; left: 14px; transform: rotate(270deg); }
+
+    .title-block {
+      position: absolute;
+      top: clamp(32px, 5vw, 64px);
+      left: clamp(28px, 4vw, 62px);
+      z-index: 5;
+      width: min(290px, 31vw);
+      pointer-events: none;
+    }
+
+    .title-index {
+      display: block;
+      margin-bottom: 14px;
+      color: rgba(135, 247, 199, 0.75);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+    }
+
+    .title-block h2 {
+      max-width: 240px;
+      margin: 0;
+      font-size: clamp(34px, 5.2vw, 78px);
+      font-stretch: condensed;
+      font-weight: 500;
+      letter-spacing: -0.035em;
+      line-height: 0.82;
+      text-transform: uppercase;
+    }
+
+    .title-block p {
+      max-width: 230px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: clamp(9px, 0.85vw, 11px);
+      letter-spacing: 0.055em;
+      line-height: 1.7;
+    }
+
+    .legend {
+      position: absolute;
+      top: 50%;
+      right: clamp(26px, 4vw, 58px);
+      z-index: 5;
+      width: min(218px, 24vw);
+      padding: 15px 16px 13px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, transparent, rgba(6, 14, 13, 0.66));
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .legend-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 9px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr) auto;
+      align-items: center;
+      min-height: 28px;
+      gap: 9px;
+      border-top: 1px solid rgba(151, 184, 172, 0.08);
+      color: #9badA6;
+      font-size: 11px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      transition: color 160ms ease, transform 160ms ease;
+    }
+
+    .legend-item:first-of-type {
+      border-top: 0;
+    }
+
+    .legend-swatch {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #78332e;
+      box-shadow: 0 0 0 3px rgba(120, 51, 46, 0.12);
+    }
+
+    .legend-code {
+      color: var(--dim);
+      font-size: 7px;
+    }
+
+    .legend-item.is-active {
+      color: #ffd2c6;
+      transform: translateX(-4px);
+    }
+
+    .legend-item.is-active .legend-swatch {
+      background: var(--alert);
+      box-shadow: 0 0 14px rgba(255, 107, 74, 0.9);
+      animation: signal-pulse 720ms ease-in-out infinite;
+    }
+
+    .telemetry {
+      position: absolute;
+      right: clamp(26px, 4vw, 58px);
+      bottom: clamp(30px, 4vw, 52px);
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(90px, 1fr));
+      width: min(286px, 32vw);
+      pointer-events: none;
+    }
+
+    .readout {
+      padding: 11px 0 9px 13px;
+      border-left: 1px solid var(--line);
+    }
+
+    .readout-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--dim);
+      font-size: 7px;
+    }
+
+    .readout-value {
+      display: block;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: clamp(10px, 1vw, 13px);
+      letter-spacing: 0.04em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stimulation {
+      position: absolute;
+      left: clamp(28px, 4vw, 62px);
+      bottom: clamp(30px, 4vw, 52px);
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      min-width: 190px;
+      padding: 12px 15px;
+      gap: 12px;
+      border-left: 2px solid var(--dim);
+      background: rgba(5, 13, 12, 0.5);
+      pointer-events: none;
+      transition: border-color 160ms ease, background 160ms ease;
+    }
+
+    .stim-icon {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.5;
+      color: var(--dim);
+    }
+
+    .stimulation.is-active {
+      border-color: var(--alert);
+      background: rgba(76, 24, 18, 0.56);
+    }
+
+    .stimulation.is-active .stim-icon {
+      color: var(--alert);
+      filter: drop-shadow(0 0 7px rgba(255, 107, 74, 0.76));
+    }
+
+    .micro-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--dim);
+      font-size: 7px;
+    }
+
+    #stim-value {
+      display: block;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 11px;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .stimulation.is-active #stim-value {
+      color: #ffc0b1;
+    }
+
+    .axis-note {
+      position: absolute;
+      left: 50%;
+      bottom: 17px;
+      z-index: 5;
+      color: rgba(142, 161, 154, 0.5);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 7px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .footerbar {
+      gap: 18px;
+      min-height: 22px;
+      color: var(--dim);
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 7px;
+      letter-spacing: 0.08em;
+      line-height: 1.5;
+      text-transform: uppercase;
+    }
+
+    .footerbar p {
+      margin: 0;
+    }
+
+    .credit {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .credit a {
+      text-decoration-color: rgba(135, 247, 199, 0.35);
+      text-underline-offset: 3px;
+    }
+
+    #endpoint {
+      max-width: 42vw;
+      overflow: hidden;
+      text-align: right;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @keyframes signal-pulse {
+      0%,
+      100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        padding: 10px;
+        gap: 8px;
+      }
+
+      .brand-mark,
+      #armed-pill {
+        display: none;
+      }
+
+      .state-pill {
+        min-height: 26px;
+        padding: 0 8px;
+        font-size: 8px;
+      }
+
+      .title-block {
+        top: 35px;
+        left: 28px;
+        width: 48vw;
+      }
+
+      .title-block h2 {
+        font-size: clamp(30px, 10vw, 56px);
+      }
+
+      .title-block p {
+        display: none;
+      }
+
+      .legend {
+        top: auto;
+        right: 24px;
+        bottom: 74px;
+        width: 170px;
+        transform: none;
+      }
+
+      .legend-heading,
+      .legend-code {
+        display: none;
+      }
+
+      .legend-item {
+        min-height: 23px;
+        font-size: 9px;
+      }
+
+      .telemetry {
+        right: 24px;
+        bottom: 24px;
+        width: 170px;
+      }
+
+      .readout {
+        padding-top: 7px;
+        padding-bottom: 6px;
+      }
+
+      .stimulation {
+        left: 24px;
+        bottom: 24px;
+        min-width: 0;
+        max-width: 43vw;
+      }
+
+      .axis-note,
+      #endpoint {
+        display: none;
+      }
+
+      .footerbar {
+        min-height: 30px;
+      }
+
+      .credit {
+        white-space: normal;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="side-picker" role="group" aria-label="Which arm to track">
+        <span class="side-picker-label">Arm</span>
+        <button type="button" class="side-option" data-side="left">Left</button>
+        <button type="button" class="side-option is-selected" data-side="right">Right</button>
+      </div>
+      <div class="state-cluster" aria-live="polite">
+        <span class="state-pill" id="connection-pill">
+          <span class="state-dot"></span>
+          <span id="connection-label">Connecting</span>
+        </span>
+        <span class="state-pill" id="tracking-pill">
+          <span class="state-dot"></span>
+          <span id="tracking-label">Awaiting pose</span>
+        </span>
+        <span class="state-pill" id="armed-pill">
+          <span class="state-dot"></span>
+          <span id="armed-label">Mode unknown</span>
+        </span>
+      </div>
+    </header>
+
+    <div class="stage">
+    <section class="viewport" id="viewport" aria-label="Live three-dimensional arm pose">
+      <div id="three-mount"></div>
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner br"></span>
+      <span class="corner bl"></span>
+
+      <div class="prompt" id="prompt" hidden aria-live="assertive">
+        <span class="prompt-icon" aria-hidden="true"></span>
+        <p id="prompt-text">Get your arm in the camera</p>
+      </div>
+    </section>
+
+    <section class="camera-viewport" id="camera-viewport" aria-label="Live camera feed">
+      <img id="camera-feed" alt="">
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner br"></span>
+      <span class="corner bl"></span>
+
+      <span class="state-pill camera-status" id="camera-status-pill">
+        <span class="state-dot"></span>
+        <span id="camera-status-label">Requesting camera…</span>
+      </span>
+    </section>
+    </div>
+
+    <footer class="footerbar">
+      <p class="credit">
+        Anatomy reference:
+        <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/" target="_blank" rel="noreferrer">
+          BodyParts3D © The Database Center for Life Science
+        </a>
+        — per-asset license/source in <code>frontend/assets/THIRD_PARTY_ASSETS.md</code> · procedural muscle fallback where unavailable
+      </p>
+      <p id="endpoint">WS /ws</p>
+    </footer>
+  </main>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+  }
+}
+</script>
+
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+    import { OBJLoader } from "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/OBJLoader.js";
+
+    // Metric (metres) landmarks drive the twin; normalized ones are the fallback.
+    //
+    // Normalized coordinates are unusable for 3D here. Their x/y are fractions
+    // of the image but z is on an unrelated scale of its own — measured live,
+    // |dz| averaged 1.741 against |dx| 0.035 and |dy| 0.075, so depth came out
+    // ~23x too large. Every arm therefore rendered as if aimed almost straight
+    // down the lens (you saw the hand end-on, not the arm), and the auto-framing
+    // sat pinned at its widest setting on all 225 frames of a test run trying to
+    // fit a limb that appeared ~10 world units long.
+    //
+    // World landmarks put all three axes in metres: the same measurement gives
+    // |dx| 0.192, |dy| 0.245, |dz| 0.073 — z now 0.3x x/y rather than 23x.
+    const ARM_SCALE = 6.0;        // normalized (fallback only)
+    const ARM_SCALE_METRIC = 6.0; // metres -> world units (~0.33m reach -> ~2.0)
+    // Hand+finger reach beyond the wrist, in the same world units as the live
+    // arm segment lengths — no per-finger tracking exists, so this is one rigid
+    // static length, not five.
+    const HAND_LENGTH = 0.55;
+    // Pose samples arrive at ~20Hz (less in practice) but we render at 60Hz+.
+    // Applying a sample the instant it lands made the arm hold still for 3-5
+    // frames then snap to the next one — that stepping, plus MediaPipe's raw
+    // per-frame landmark noise, is what read as jitter. The render loop eases
+    // toward the newest sample instead of teleporting to it.
+    //
+    // Rates are per-second constants used as 1-exp(-rate*dt) so the feel does
+    // not change with display refresh rate (a flat per-frame factor converges
+    // ~2.4x faster on a 144Hz screen than on 60Hz). Higher = snappier and
+    // noisier, lower = smoother and laggier; 16 covers ~90% of a move in 150ms.
+    const POSE_SMOOTHING_RATE = 16;
+    // Matches the old flat 0.08/frame at 60Hz: -ln(1-0.08)*60 ~= 5.
+    const VIEW_SMOOTHING_RATE = 5;
+    // Ignore huge deltas after the tab is backgrounded, so returning to it
+    // eases in rather than jumping.
+    const MAX_FRAME_DELTA_S = 0.1;
+    const TRACKING_STALE_MS = 1200;
+    const RECONNECT_MAX_MS = 5000;
+    const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+    // BodyParts3D ships 2234 unlabeled FJ####.obj files per download; these were
+    // cross-referenced against the archive's name index (see
+    // frontend/assets/THIRD_PARTY_ASSETS.md) to the muscle/bone matching each rig
+    // target. Multi-entry targets are multiple real anatomical pieces (e.g.
+    // triceps' three heads) loaded and kept in their real relative positions, not
+    // LOD/quality variants.
+    //
+    // Both sides are real BP3D geometry, not one side flipped in code: an arm is
+    // chiral, so a mirrored right arm IS a left arm and rendering it for a tracked
+    // left arm would put the muscles on the wrong faces. Verified as true mirrors
+    // (right spans X -229.9..-135.2, left +135.2..+229.9) with segment lengths
+    // agreeing within ~1mm. Note the sides use different ID conventions — muscles
+    // are the same number with an "M" suffix, hand bones are unrelated numbers.
+    const ASSET_DIR = "assets/bp3d";
+    const MUSCLE_ASSET_MANIFEST = {
+      right: {
+        bicep: ["FJ1478", "FJ1512"],
+        tricep: ["FJ1479", "FJ1480", "FJ1477"],
+        frontDelt: ["FJ1468", "FJ1467"],
+        rearDelt: ["FJ1513"],
+        forearmFlexor: ["FJ1496", "FJ1502", "FJ1475", "FJ1499", "FJ1497"],
+        forearmExtensor: ["FJ1487", "FJ1490", "FJ1489", "FJ1492", "FJ1472", "FJ1517"],
+        // Static hand/finger skeleton — see the handGrip note in
+        // THIRD_PARTY_ASSETS.md for why this isn't individually rigged.
+        handGrip: [
+          "FJ3350", "FJ3352", "FJ3354", "FJ3356", "FJ3358",
+          "FJ3327", "FJ3322", "FJ3325", "FJ3326", "FJ3323",
+          "FJ3303", "FJ3306", "FJ3292", "FJ3304",
+          "FJ3198", "FJ3193", "FJ3196", "FJ3197", "FJ3194",
+        ],
+      },
+      left: {
+        bicep: ["FJ1478M", "FJ1512M"],
+        tricep: ["FJ1479M", "FJ1480M", "FJ1477M"],
+        frontDelt: ["FJ1468M", "FJ1467M"],
+        rearDelt: ["FJ1513M"],
+        forearmFlexor: ["FJ1496M", "FJ1502M", "FJ1475M", "FJ1499M", "FJ1497M"],
+        forearmExtensor: ["FJ1487M", "FJ1490M", "FJ1489M", "FJ1492M", "FJ1472M", "FJ1517M"],
+        handGrip: [
+          "FJ3240", "FJ3243", "FJ3246", "FJ3249", "FJ3252",
+          "FJ3318", "FJ3313", "FJ3316", "FJ3317", "FJ3314",
+          "FJ3296", "FJ3299", "FJ3291", "FJ3297",
+          "FJ3188", "FJ3183", "FJ3186", "FJ3187", "FJ3184",
+        ],
+      },
+    };
+
+    // Mesh set shown before the first pose arrives; kept in step with DEFAULT_SIDE.
+    const DEFAULT_MESH_SIDE = "right";
+
+    function assetUrlsFor(side, muscle) {
+      return (MUSCLE_ASSET_MANIFEST[side]?.[muscle] ?? []).map((id) => `${ASSET_DIR}/${id}.obj`);
+    }
+
+    // Every BP3D file shares one whole-body coordinate frame, which is the whole
+    // reason this data looks anatomical: the pieces already interlock correctly.
+    // So each rig segment is aligned ONCE, as a unit, instead of each muscle
+    // being independently re-centred and re-scaled (which is what made them read
+    // as disconnected blobs — biceps and triceps came out at inverted relative
+    // lengths, and per-muscle scale factors spanned a 2.5x range).
+    //
+    // The frame's Z is vertical with the shoulder at high Z, but the reference
+    // pose's arm is NOT vertical (measured lean: humerus ~12deg, forearm ~13deg,
+    // hand ~26deg), so the limb axis is measured from the geometry rather than
+    // assumed. Centroids of a slab at each end of a segment's Z range give two
+    // points whose difference is that real axis.
+    const AXIS_SLAB_FRACTION = 0.12;
+
+    // Declared before any loadArmMeshes(...) call site below: its body reads this
+    // identifier synchronously, before the first `await` suspends, so a `const`
+    // declared later in the same module scope would still be in the temporal
+    // dead zone at that point.
+    const objLoader = new OBJLoader();
+
+    const mount = document.querySelector("#three-mount");
+    const viewport = document.querySelector("#viewport");
+    const connectionPill = document.querySelector("#connection-pill");
+    const connectionLabel = document.querySelector("#connection-label");
+    const trackingPill = document.querySelector("#tracking-pill");
+    const trackingLabel = document.querySelector("#tracking-label");
+    const armedPill = document.querySelector("#armed-pill");
+    const armedLabel = document.querySelector("#armed-label");
+    const endpoint = document.querySelector("#endpoint");
+    const prompt = document.querySelector("#prompt");
+    const promptText = document.querySelector("#prompt-text");
+    const sideOptions = [...document.querySelectorAll(".side-option")];
+
+    // Always an explicit side. Auto-picking was removed deliberately: with a
+    // TENS rig the arm being trained is a decision the operator makes, and an
+    // estimator quietly choosing (or switching to) the other arm is exactly the
+    // ambiguity worth designing out. The backend still supports null/auto for
+    // the still-photo calibration path; the live UI just never asks for it.
+    const DEFAULT_SIDE = "right";
+    let selectedSide = DEFAULT_SIDE;
+
+    const cameraFeed = document.querySelector("#camera-feed");
+    const cameraStatusPill = document.querySelector("#camera-status-pill");
+    const cameraStatusLabel = document.querySelector("#camera-status-label");
+
+    function setCameraStatus(state, text) {
+      cameraStatusPill.classList.remove("is-live", "is-hold", "is-armed");
+      if (state) cameraStatusPill.classList.add(state);
+      cameraStatusLabel.textContent = text;
+    }
+
+    function cameraStreamUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const override = params.get("camera");
+      if (override) return new URL(override, window.location.href).toString();
+
+      const wsOverride = params.get("ws");
+      if (wsOverride) {
+        const url = new URL(wsOverride, window.location.href);
+        url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+        url.pathname = "/camera.mjpeg";
+        url.search = "";
+        url.hash = "";
+        return url.toString();
+      }
+
+      const scheme = window.location.protocol === "https:" ? "https" : "http";
+      const host = window.location.hostname || "127.0.0.1";
+      return `${scheme}://${host}:8000/camera.mjpeg`;
+    }
+
+    const cameraUrl = cameraStreamUrl();
+    let cameraRetryTimer = null;
+
+    function startCameraPreview() {
+      window.clearTimeout(cameraRetryTimer);
+      setCameraStatus("is-hold", "Connecting preview");
+      const url = new URL(cameraUrl);
+      url.searchParams.set("_", Date.now().toString());
+      cameraFeed.src = url.toString();
+    }
+
+    cameraFeed.addEventListener("load", () => {
+      setCameraStatus("is-live", "Live");
+    });
+
+    cameraFeed.addEventListener("error", () => {
+      setCameraStatus("is-armed", "Preview offline");
+      cameraRetryTimer = window.setTimeout(startCameraPreview, 1800);
+    });
+
+    startCameraPreview();
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x07100f, 0.078);
+
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    camera.position.set(1.45, -0.15, 8.4);
+    // Aimed below the shoulder because the arm hangs downward from it: the
+    // geometry's centre of mass sits well under the origin, and aiming at the
+    // origin pushed the arm into the lower half of frame, forcing a wider FOV
+    // (smaller arm) to keep the far end in shot. Fixed rather than tracking the
+    // arm — a camera that follows the arm makes the whole scene swim.
+    const CAMERA_LOOK_AT = new THREE.Vector3(0, -1.15, 0);
+    camera.lookAt(CAMERA_LOOK_AT);
+
+    // The shoulder is pinned at the world origin (armRoot/shoulderNode never get
+    // a position offset — see below), so camera-to-shoulder distance is constant
+    // regardless of the orbit drag rotating presentationRig around that same origin.
+    // Padding between the arm and the viewport edge (1.0 = flush). Generous
+    // because the panel also draws a decorative inset frame ~14px in, and the
+    // arm reaching that line reads as touching the wall of its box.
+    const CAMERA_FOV_MARGIN = 1.3;
+    const CAMERA_FOV_MIN = 24;
+    const CAMERA_FOV_MAX = 82;
+    // Asymmetric on purpose. Widening is a correctness deadline — the arm is
+    // already outgrowing the frustum, and easing into it at the old shared rate
+    // (~460ms to settle) let fast extensions clip before the camera caught up.
+    // Narrowing has no deadline, so it stays slow: matching the expand rate
+    // would make the view pump in and out on every small movement.
+    // Widening is applied instantly rather than eased: it only happens when the
+    // arm is already outgrowing the frame, so any easing at all is a window in
+    // which the hand is cut off. Pulling back in is heavily damped instead, so
+    // in practice the view settles at whatever the widest recent pose needed and
+    // then stops moving — the arm changing size while you use it is the thing
+    // that read as unstable.
+    const FOV_CONTRACT_RATE = 0.5;
+    // Hysteresis. The measured fit changes a little every single frame (the arm
+    // is never perfectly still), and chasing that meant the whole scene was
+    // being continuously rescaled by a fraction of a degree — which reads as the
+    // model shimmering rather than as zooming. Widening still applies
+    // immediately, because that one is about not clipping; narrowing has to beat
+    // this threshold before the view will move at all.
+    const FOV_CONTRACT_DEADBAND_DEG = 10;
+    let targetCameraFov = camera.fov;
+
+    const framingBox = new THREE.Box3();
+    const framingCorner = new THREE.Vector3();
+
+    // Frames whatever is actually on screen, by measuring the rendered geometry
+    // instead of estimating a reach from joint positions.
+    //
+    // The estimate this replaces was wrong twice over. It used
+    // wrist-distance + HAND_LENGTH, but the real meshes extend further than that
+    // — the forearm's finger tendons run ~0.65 past the wrist, more than the
+    // hand itself — so the frustum was consistently a little too tight. And it
+    // treated the arm as a sphere about the world origin while the camera aimed
+    // at y=-0.75 and the arm hangs *below* the shoulder, so the geometry sat off
+    // the view axis: empty space at the top, clipping at the bottom.
+    function updateCameraFraming() {
+      // setFromObject refreshes descendant world matrices itself, and expands
+      // from each geometry's cached bounding box rather than re-reading
+      // vertices, so this is cheap enough to run per frame.
+      framingBox.setFromObject(armRoot);
+      if (framingBox.isEmpty()) return;
+
+      camera.updateMatrixWorld();
+      camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+
+      // Project the bounding box's corners into camera space and fit to the
+      // widest one. A bounding *sphere* was the previous attempt; fitting it
+      // needed the camera to aim at its centre, and making the camera chase the
+      // arm turned every arm movement into a camera movement, which is what
+      // made the whole scene feel like it was swimming. Corners let the camera
+      // stay completely still and still frame geometry that sits off-axis.
+      let maxTanY = 0;
+      let maxTanX = 0;
+      for (let i = 0; i < 8; i += 1) {
+        framingCorner.set(
+          i & 1 ? framingBox.max.x : framingBox.min.x,
+          i & 2 ? framingBox.max.y : framingBox.min.y,
+          i & 4 ? framingBox.max.z : framingBox.min.z,
+        ).applyMatrix4(camera.matrixWorldInverse);
+
+        // Camera space looks down -Z; anything at or behind the lens can't be
+        // framed by widening, so skip it rather than divide by ~0.
+        const depth = -framingCorner.z;
+        if (depth <= 0.01) continue;
+        maxTanY = Math.max(maxTanY, Math.abs(framingCorner.y) / depth);
+        maxTanX = Math.max(maxTanX, Math.abs(framingCorner.x) / depth);
+      }
+      if (maxTanY === 0 && maxTanX === 0) return;
+
+      // camera.fov is the vertical angle, so the horizontal requirement has to
+      // be converted through the aspect ratio — on a viewport taller than it is
+      // wide, width is the binding constraint.
+      const requiredTan = Math.max(maxTanY, maxTanX / (camera.aspect || 1)) * CAMERA_FOV_MARGIN;
+      const required = THREE.MathUtils.clamp(
+        THREE.MathUtils.radToDeg(Math.atan(requiredTan)) * 2,
+        CAMERA_FOV_MIN,
+        CAMERA_FOV_MAX,
+      );
+
+      // Widen the moment it's needed; only pull back in once there is a
+      // worthwhile amount of slack, so small movements don't rescale the scene.
+      if (required > targetCameraFov || required < targetCameraFov - FOV_CONTRACT_DEADBAND_DEG) {
+        targetCameraFov = required;
+      }
+    }
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mount.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xbfead8, 0x17211d, 1.85));
+
+    const keyLight = new THREE.DirectionalLight(0xffd8c8, 4.2);
+    keyLight.position.set(3.5, 4.5, 5.5);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.PointLight(0x58f3bd, 15, 9, 2);
+    rimLight.position.set(-3.2, 0.8, -1.2);
+    scene.add(rimLight);
+
+    const signalLight = new THREE.PointLight(0xff5f43, 0, 5, 2);
+    signalLight.position.set(0, -1.2, 1.8);
+    scene.add(signalLight);
+
+    function addDiagnosticRing(radius, opacity) {
+      const curve = new THREE.EllipseCurve(0, 0, radius, radius, 0, Math.PI * 2);
+      const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(160));
+      const material = new THREE.LineBasicMaterial({
+        color: 0x6bb89c,
+        transparent: true,
+        opacity,
+      });
+      const ring = new THREE.LineLoop(geometry, material);
+      ring.position.set(0, -0.8, -1.35);
+      scene.add(ring);
+    }
+
+    addDiagnosticRing(2.25, 0.12);
+    addDiagnosticRing(2.75, 0.06);
+
+    const floor = new THREE.GridHelper(11, 22, 0x2c5a4b, 0x163128);
+    floor.position.set(0, -3.55, 0);
+    floor.material.transparent = true;
+    floor.material.opacity = 0.26;
+    scene.add(floor);
+
+    const presentationRig = new THREE.Object3D();
+    // A three-quarter view rather than face-on. Face-on means an arm pointed at
+    // or away from the camera collapses to a point — you end up looking down the
+    // limb and seeing only the hand. Off-axis, no single arm direction is
+    // degenerate. Static, so it costs nothing in stability; drag still overrides.
+    const DEFAULT_VIEW_YAW = -0.62;
+    presentationRig.rotation.y = DEFAULT_VIEW_YAW;
+    scene.add(presentationRig);
+
+    const armRoot = new THREE.Object3D();
+    armRoot.name = "armRoot";
+    // Mirror mode: the camera preview is flipped (#camera-feed scaleX(-1)) so it
+    // reads like a gym mirror, and without this the model moved the opposite way
+    // to the preview — raise your right arm, the preview goes right and the model
+    // went left.
+    //
+    // Done as a negative scale on the rig rather than by negating landmark x,
+    // because a mirror has to flip geometry AND motion together: mirroring only
+    // the motion would swing the limb across while leaving the muscle meshes
+    // unmirrored, putting the biceps on the wrong face of the arm. Three.js
+    // handles the negative determinant itself — WebGLRenderer flips triangle
+    // winding, and normals go through the inverse-transpose normal matrix — so
+    // lighting and backfaces stay correct.
+    //
+    // Deliberately a *presentation* transform, below the pose data: pads are
+    // addressed by name (padToTarget) and the arm side comes from MediaPipe's
+    // anatomical landmark identity, so nothing here can change which physical
+    // pad fires. Never move this mirroring upstream into the landmark maths.
+    armRoot.scale.x = -1;
+    presentationRig.add(armRoot);
+
+    const shoulderNode = new THREE.Object3D();
+    shoulderNode.name = "shoulder";
+    armRoot.add(shoulderNode);
+
+    const elbowNode = new THREE.Object3D();
+    elbowNode.name = "elbow";
+    armRoot.add(elbowNode);
+
+    const wristNode = new THREE.Object3D();
+    wristNode.name = "wrist";
+    armRoot.add(wristNode);
+
+    const boneMaterial = new THREE.MeshStandardMaterial({
+      color: 0xbdb79f,
+      roughness: 0.66,
+      metalness: 0.04,
+      transparent: true,
+      // Faded down from 0.78 so the loaded BP3D muscle geometry (drawn around
+      // it, at a larger radius) actually reads instead of blending into a
+      // near-opaque tan tube that overlaps it.
+      opacity: 0.4,
+    });
+    const jointMaterial = new THREE.MeshStandardMaterial({
+      color: 0xe2dbc0,
+      roughness: 0.55,
+      metalness: 0.02,
+    });
+
+    function makeJoint(radius) {
+      const joint = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 24, 18),
+        jointMaterial.clone(),
+      );
+      joint.castShadow = true;
+      joint.receiveShadow = true;
+      return joint;
+    }
+
+    // Joint markers and the torso stub are placeholder primitives, deliberately
+    // kept small: with the real deltoid/biceps/triceps meshes wrapping the rig,
+    // anything at the old sizes (0.18/0.14 balls, a 0.22x0.64 capsule) read as
+    // the dominant shape and buried the anatomy it was standing in for.
+    shoulderNode.add(makeJoint(0.085));
+    elbowNode.add(makeJoint(0.075));
+
+    const shoulderStub = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.12, 0.34, 7, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0x858679,
+        roughness: 0.72,
+        metalness: 0.03,
+        transparent: true,
+        opacity: 0.55,
+      }),
+    );
+    // X is set per side by orientShoulderStub() below — the torso is on opposite
+    // sides of the shoulder for each arm, and this was previously hardcoded, so
+    // one side had its body stub sticking out into empty space where the torso
+    // wasn't. Y/Z are side-independent.
+    shoulderStub.position.set(0, 0.04, -0.02);
+    shoulderStub.rotation.z = Math.PI / 2;
+    shoulderStub.castShadow = true;
+    shoulderNode.add(shoulderStub);
+
+    const SHOULDER_STUB_OFFSET = 0.3;
+
+    function orientShoulderStub(side) {
+      shoulderStub.position.x = (side === "left" ? -1 : 1) * SHOULDER_STUB_OFFSET;
+    }
+
+    function makeSegment(parent, name) {
+      const pivot = new THREE.Object3D();
+      pivot.name = name;
+      parent.add(pivot);
+
+      const bone = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.075, 0.09, 1, 14),
+        boneMaterial.clone(),
+      );
+      bone.castShadow = true;
+      bone.receiveShadow = true;
+      pivot.add(bone);
+      return { pivot, bone, length: 1 };
+    }
+
+    const upperArm = makeSegment(shoulderNode, "upperArmSegment");
+    const forearm = makeSegment(elbowNode, "forearmSegment");
+
+    function muscleMaterial(color) {
+      return new THREE.MeshPhysicalMaterial({
+        color,
+        // Bumped up from 0x170302/0.18 — at the original low intensity, muscle
+        // tissue read as the same tan/gray as the bone cylinder it wraps
+        // instead of visibly red, especially at the small on-screen scale.
+        emissive: 0x3a0904,
+        emissiveIntensity: 0.42,
+        roughness: 0.5,
+        metalness: 0.02,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.65,
+      });
+    }
+
+    function makeMuscle(name, radius, length, color) {
+      const group = new THREE.Object3D();
+      group.name = name;
+      const mesh = new THREE.Mesh(
+        new THREE.CapsuleGeometry(radius, length, 10, 22),
+        muscleMaterial(color),
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      return group;
+    }
+
+    // Distinct hue per muscle group: at this on-screen size a single shared red
+    // makes adjacent bellies merge into one mass, so neighbouring muscles are
+    // separated by tone as well as by shape.
+    const MUSCLE_COLOR = {
+      bicep: 0xc04a3c,
+      tricep: 0x8a2f30,
+      frontDelt: 0xd2593e,
+      rearDelt: 0x74272c,
+      forearmFlexor: 0xb04434,
+      forearmExtensor: 0x792a2a,
+    };
+
+    // Capsule stand-ins render immediately; loadArmMeshes() swaps in the real
+    // BodyParts3D meshes once they arrive, so parenting and highlighting never
+    // depend on the async load having finished.
+    const bicep = makeMuscle("bicep", 0.155, 0.78, MUSCLE_COLOR.bicep);
+    bicep.position.z = 0.15;
+    bicep.rotation.x = 0.07;
+    upperArm.pivot.add(bicep);
+
+    const tricep = makeMuscle("tricep", 0.14, 0.86, MUSCLE_COLOR.tricep);
+    tricep.position.z = -0.16;
+    tricep.rotation.x = -0.06;
+    upperArm.pivot.add(tricep);
+
+    const frontDelt = makeMuscle("frontDelt", 0.18, 0.34, MUSCLE_COLOR.frontDelt);
+    frontDelt.position.set(-0.08, 0.24, 0.2);
+    frontDelt.rotation.z = -0.34;
+    upperArm.pivot.add(frontDelt);
+
+    const rearDelt = makeMuscle("rearDelt", 0.17, 0.36, MUSCLE_COLOR.rearDelt);
+    rearDelt.position.set(0.07, 0.23, -0.2);
+    rearDelt.rotation.z = 0.34;
+    upperArm.pivot.add(rearDelt);
+
+    const forearmFlexor = makeMuscle("forearmFlexor", 0.1, 0.7, MUSCLE_COLOR.forearmFlexor);
+    forearmFlexor.position.z = 0.1;
+    forearmFlexor.rotation.x = 0.05;
+    forearm.pivot.add(forearmFlexor);
+
+    const forearmExtensor = makeMuscle("forearmExtensor", 0.095, 0.72, MUSCLE_COLOR.forearmExtensor);
+    forearmExtensor.position.z = -0.11;
+    forearmExtensor.rotation.x = -0.05;
+    forearm.pivot.add(forearmExtensor);
+
+    // Bone-toned (not muscleMaterial's reddish emissive) since the real asset is
+    // hand/finger skeleton, not soft tissue — see handGrip in THIRD_PARTY_ASSETS.md.
+    const handBoneMaterial = boneMaterial.clone();
+    handBoneMaterial.opacity = 1;
+    handBoneMaterial.transparent = false;
+
+    const handGrip = makeMuscle("handGrip", 0.1, HAND_LENGTH, 0xcdc4a8);
+    forearm.pivot.add(handGrip);
+
+    const muscleSlots = {
+      bicep,
+      tricep,
+      frontDelt,
+      rearDelt,
+      forearmFlexor,
+      forearmExtensor,
+      handGrip,
+    };
+
+    function meshMaterialFor(muscleName) {
+      return muscleName === "handGrip"
+        ? handBoneMaterial.clone()
+        : muscleMaterial(MUSCLE_COLOR[muscleName]);
+    }
+
+    const wristTarget = new THREE.Object3D();
+    wristTarget.name = "wristPadMarker";
+    wristNode.add(wristTarget);
+
+    // Pad-placement marker only. Shrunk hard from 0.175/0.24 — at that size it
+    // sat right where the real hand mesh now starts and hid it completely.
+    const wristCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 20, 14),
+      muscleMaterial(0x8b3430),
+    );
+    wristCore.castShadow = true;
+    wristTarget.add(wristCore);
+
+    const wristHaloMaterial = muscleMaterial(0x61302c);
+    wristHaloMaterial.transparent = true;
+    wristHaloMaterial.opacity = 0.74;
+    const wristHalo = new THREE.Mesh(
+      new THREE.TorusGeometry(0.1, 0.012, 10, 32),
+      wristHaloMaterial,
+    );
+    wristHalo.rotation.x = Math.PI / 2;
+    wristTarget.add(wristHalo);
+
+    const targets = {
+      bicep,
+      tricep,
+      frontDelt,
+      rearDelt,
+      forearmFlexor,
+      forearmExtensor,
+    };
+
+    const padToTarget = {
+      BICEP: "bicep",
+      TRICEP: "tricep",
+      FRONT_DELT: "frontDelt",
+      REAR_DELT: "rearDelt",
+      WRIST_FLEX: "forearmFlexor",
+      WRIST_EXTEND: "forearmExtensor",
+    };
+
+    const activePads = new Set();
+    const targetMaterials = new Map();
+
+    function captureTargetMaterials(name) {
+      const group = targets[name];
+      const materials = [];
+      group.traverse((child) => {
+        if (!child.isMesh) return;
+        const material = child.material;
+        material.userData.baseColor = material.color.clone();
+        material.userData.baseEmissive = material.emissive.clone();
+        material.userData.baseEmissiveIntensity = material.emissiveIntensity;
+        materials.push(material);
+      });
+      targetMaterials.set(name, materials);
+    }
+
+    Object.keys(targets).forEach(captureTargetMaterials);
+
+    // Joints are measured only from muscle sets that genuinely bracket their own
+    // two joints: biceps/triceps run shoulder->elbow, the hand bones run
+    // wrist->fingertip. The forearm is NOT measured from its own muscles —
+    // brachioradialis originates above the elbow and the finger flexor tendons
+    // run past the wrist into the hand, so its own span reads 430mm against a
+    // true elbow->wrist bone of 240mm and scales those muscles 1.79x too small.
+    // Deriving it from the shared joints instead keeps the whole arm consistent.
+    const JOINT_SOURCES = {
+      // measured set -> [proximal joint name, distal joint name]
+      upperArm: { shaft: ["bicep", "tricep"], joints: ["shoulder", "elbow"] },
+      hand: { shaft: ["handGrip"], joints: ["wrist", "fingertip"] },
+    };
+
+    // Muscles that overhang their segment's joints (deltoid above the shoulder,
+    // forearm muscles across both ends) still ride in the same measured frame,
+    // so they overhang in the render exactly as they do anatomically.
+    const ARM_SEGMENTS = {
+      upperArm: {
+        pivot: () => upperArm.pivot,
+        from: "shoulder",
+        to: "elbow",
+        muscles: ["bicep", "tricep", "frontDelt", "rearDelt"],
+      },
+      forearm: {
+        pivot: () => forearm.pivot,
+        from: "elbow",
+        to: "wrist",
+        muscles: ["forearmFlexor", "forearmExtensor"],
+      },
+      hand: {
+        pivot: () => forearm.pivot,
+        from: "wrist",
+        to: "fingertip",
+        muscles: ["handGrip"],
+      },
+    };
+
+    const segmentContainers = {};
+
+    // Two centroids — one per end-slab of the segment's Z range — give the real
+    // proximal->distal axis. Accumulated as running sums rather than collecting
+    // Vector3s, since these meshes carry hundreds of thousands of vertices.
+    function measureSegmentAxis(objects) {
+      const meshes = [];
+      for (const object of objects) {
+        object.traverse((child) => {
+          if (child.isMesh) meshes.push(child);
+        });
+      }
+      if (meshes.length === 0) return null;
+
+      let zMin = Infinity;
+      let zMax = -Infinity;
+      for (const mesh of meshes) {
+        const position = mesh.geometry.attributes.position;
+        for (let i = 0; i < position.count; i += 1) {
+          const z = position.getZ(i);
+          if (z < zMin) zMin = z;
+          if (z > zMax) zMax = z;
+        }
+      }
+      if (!(zMax > zMin)) return null;
+
+      const band = (zMax - zMin) * AXIS_SLAB_FRACTION;
+      const proximal = { x: 0, y: 0, z: 0, n: 0 };
+      const distal = { x: 0, y: 0, z: 0, n: 0 };
+      for (const mesh of meshes) {
+        const position = mesh.geometry.attributes.position;
+        for (let i = 0; i < position.count; i += 1) {
+          const z = position.getZ(i);
+          // High Z is the shoulder end of BP3D's frame, so it is the proximal one.
+          const slab = z >= zMax - band ? proximal : (z <= zMin + band ? distal : null);
+          if (!slab) continue;
+          slab.x += position.getX(i);
+          slab.y += position.getY(i);
+          slab.z += z;
+          slab.n += 1;
+        }
+      }
+      if (proximal.n === 0 || distal.n === 0) return null;
+
+      return {
+        proximal: new THREE.Vector3(proximal.x / proximal.n, proximal.y / proximal.n, proximal.z / proximal.n),
+        distal: new THREE.Vector3(distal.x / distal.n, distal.y / distal.n, distal.z / distal.n),
+      };
+    }
+
+    function buildSegment(segmentName, loaded, joints) {
+      const spec = ARM_SEGMENTS[segmentName];
+      const proximal = joints[spec.from];
+      const distal = joints[spec.to];
+      const axis = distal.clone().sub(proximal);
+      const axisLength = axis.length();
+      if (!(axisLength > 0)) throw new Error(`degenerate ${spec.from}->${spec.to} axis`);
+
+      // container rotates the measured axis onto the rig's +Y bone direction and
+      // carries the one uniform scale for the whole segment; recenter puts the
+      // proximal joint at the pivot origin. Meshes below keep raw BP3D coords,
+      // which is exactly what preserves their true relative size and position.
+      const container = new THREE.Object3D();
+      container.name = `${segmentName}Muscles`;
+      container.quaternion.setFromUnitVectors(axis.clone().normalize(), Y_AXIS);
+      container.userData.axisLength = axisLength;
+
+      const recenter = new THREE.Object3D();
+      recenter.position.copy(proximal).negate();
+      container.add(recenter);
+
+      for (const muscle of spec.muscles) {
+        const slot = muscleSlots[muscle];
+        slot.clear();
+        slot.position.set(0, 0, 0);
+        slot.rotation.set(0, 0, 0);
+        slot.scale.setScalar(1);
+        for (const piece of loaded.get(muscle)) {
+          piece.traverse((child) => {
+            if (!child.isMesh) return;
+            child.material = meshMaterialFor(muscle);
+            child.castShadow = true;
+            child.receiveShadow = true;
+          });
+          slot.add(piece);
+        }
+        recenter.add(slot);
+        if (targets[muscle]) {
+          captureTargetMaterials(muscle);
+          refreshTarget(muscle);
+        }
+      }
+
+      spec.pivot().add(container);
+      segmentContainers[segmentName] = container;
+    }
+
+    // Parsed geometry per side, so switching arms after the first visit costs no
+    // fetch and no re-parse. Only one side is ever mounted in the scene; the
+    // other is just retained geometry (~58k faces, negligible).
+    const piecesBySide = new Map();
+    // Guards against a slow load for one side landing after the user has already
+    // switched to the other and overwriting it.
+    let meshRequestToken = 0;
+    let mountedMeshSide = null;
+
+    async function loadPieces(side) {
+      const muscles = Object.keys(MUSCLE_ASSET_MANIFEST[side]);
+      const perMuscle = await Promise.all(
+        muscles.map((muscle) =>
+          Promise.all(assetUrlsFor(side, muscle).map((url) => objLoader.loadAsync(url))),
+        ),
+      );
+      const loaded = new Map();
+      muscles.forEach((muscle, index) => loaded.set(muscle, perMuscle[index]));
+      return loaded;
+    }
+
+    // Aligned as one arm, not three independent segments, because the forearm's
+    // endpoints come from the other two segments' measurements.
+    function buildArm(loaded) {
+      const joints = {};
+      for (const [sourceName, source] of Object.entries(JOINT_SOURCES)) {
+        const ends = measureSegmentAxis(source.shaft.flatMap((muscle) => loaded.get(muscle)));
+        if (!ends) throw new Error(`could not measure joints from "${sourceName}"`);
+        joints[source.joints[0]] = ends.proximal;
+        joints[source.joints[1]] = ends.distal;
+      }
+
+      // Detach the previous side before rebuilding. The pieces themselves stay
+      // alive in piecesBySide — only their parent changes — so nothing here may
+      // dispose geometry.
+      for (const [segmentName, container] of Object.entries(segmentContainers)) {
+        container.parent?.remove(container);
+        delete segmentContainers[segmentName];
+      }
+
+      for (const segmentName of Object.keys(ARM_SEGMENTS)) {
+        buildSegment(segmentName, loaded, joints);
+      }
+
+      // Without this the segments render at raw BP3D millimetre scale until the
+      // next pose frame — which never arrives when the backend isn't streaming.
+      relayoutSegments();
+    }
+
+    async function showArmMeshes(side) {
+      if (!MUSCLE_ASSET_MANIFEST[side]) return;
+      // Ahead of the same-side guard so the stub is still oriented on first
+      // call, and re-asserted even when the meshes are already mounted.
+      orientShoulderStub(side);
+      if (side === mountedMeshSide) return;
+      const token = (meshRequestToken += 1);
+      try {
+        let loaded = piecesBySide.get(side);
+        if (!loaded) {
+          loaded = await loadPieces(side);
+          if (token !== meshRequestToken) return; // superseded by a later switch
+          piecesBySide.set(side, loaded);
+        }
+        buildArm(loaded);
+        mountedMeshSide = side;
+      } catch (err) {
+        // A missing/unreadable asset (bad path, server not serving frontend/assets/)
+        // surfaces as a fetch/network/404-style failure — that's the expected, quiet
+        // case since we still fall back to the capsules. Anything else (malformed
+        // obj, parser error, unmeasurable axis) is a real bug and should be loud.
+        const message = String(err?.message ?? err ?? "");
+        const looksLikeMissingAsset = /404|not found|failed to fetch|networkerror|err_/i.test(message);
+        if (looksLikeMissingAsset) {
+          console.warn(`[twin] ${side} arm meshes unavailable, keeping capsule fallbacks`, err);
+        } else {
+          console.error(
+            `[twin] ${side} arm mesh load failed unexpectedly (not a missing-file case) — keeping capsule fallbacks`,
+            err,
+          );
+        }
+      }
+    }
+
+    // Kicked off here — below every `const` it touches, not up beside the muscle
+    // definitions — because these are const bindings, not hoisted declarations:
+    // calling earlier would throw a temporal-dead-zone ReferenceError inside the
+    // async body, get swallowed by the catch, and silently leave capsules up.
+    showArmMeshes(DEFAULT_MESH_SIDE).catch(() => {});
+
+    function targetIsActive(targetName) {
+      return [...activePads].some((pad) => padToTarget[pad] === targetName);
+    }
+
+    function refreshTarget(targetName) {
+      const isActive = targetIsActive(targetName);
+      targetMaterials.get(targetName).forEach((material) => {
+        material.color.copy(isActive ? new THREE.Color(0xff6849) : material.userData.baseColor);
+        material.emissive.copy(isActive ? new THREE.Color(0xff3218) : material.userData.baseEmissive);
+        material.emissiveIntensity = isActive ? 1.35 : material.userData.baseEmissiveIntensity;
+      });
+    }
+
+    function refreshSignalLight() {
+      signalLight.intensity = activePads.size === 0 ? 0 : 9;
+    }
+
+    const holdUntil = new Map();
+    const releaseTimers = new Map();
+
+    function releasePad(pad, targetName) {
+      releaseTimers.delete(pad);
+      holdUntil.delete(pad);
+      activePads.delete(pad);
+      refreshTarget(targetName);
+      refreshSignalLight();
+    }
+
+    function handleStatus(message) {
+      const targetName = padToTarget[message.pad];
+      if (!targetName) return;
+      if (message.state !== "firing" && message.state !== "done" && message.state !== "error") return;
+
+      const existingTimer = releaseTimers.get(message.pad);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        releaseTimers.delete(message.pad);
+      }
+
+      if (message.state === "firing") {
+        activePads.add(message.pad);
+        const holdMs = Number.isFinite(message.duration_ms) ? message.duration_ms : 0;
+        holdUntil.set(message.pad, Date.now() + holdMs);
+        refreshTarget(targetName);
+        refreshSignalLight();
+      } else if (message.state === "done" || message.state === "error") {
+        const remaining = (holdUntil.get(message.pad) ?? 0) - Date.now();
+        if (remaining > 0) {
+          const timeoutId = setTimeout(() => releasePad(message.pad, targetName), remaining);
+          releaseTimers.set(message.pad, timeoutId);
+        } else {
+          releasePad(message.pad, targetName);
+        }
+      }
+    }
+
+    function aimSegment(segment, vector) {
+      const length = vector.length();
+      if (length < 0.05) return false;
+      segment.length = length;
+      segment.pivot.quaternion.setFromUnitVectors(Y_AXIS, vector.clone().normalize());
+      segment.bone.position.y = length / 2;
+      segment.bone.scale.y = length;
+      return true;
+    }
+
+    // Real meshes: one uniform scale per segment maps its measured limb axis onto
+    // the live bone length, so every muscle in that segment keeps its true
+    // relative size and position. Capsules (pre-load): the old per-muscle offsets.
+    function layoutSegment(segmentName, boneLength, capsuleLayout) {
+      const container = segmentContainers[segmentName];
+      if (!container) {
+        capsuleLayout();
+        return;
+      }
+      container.scale.setScalar(boneLength / container.userData.axisLength);
+    }
+
+    function relayoutSegments() {
+      layoutSegment("upperArm", upperArm.length, () => {
+        bicep.position.y = upperArm.length * 0.54;
+        tricep.position.y = upperArm.length * 0.56;
+        frontDelt.position.y = Math.max(0.2, upperArm.length * 0.13);
+        rearDelt.position.y = Math.max(0.2, upperArm.length * 0.13);
+      });
+      layoutSegment("forearm", forearm.length, () => {
+        forearmFlexor.position.y = forearm.length * 0.5;
+        forearmExtensor.position.y = forearm.length * 0.5;
+      });
+      layoutSegment("hand", HAND_LENGTH, () => {
+        // A capsule centred on the wrist joint would bury half of itself back in
+        // the forearm; the real mesh instead starts at the wrist, so it only
+        // needs the joint position (below), not a half-length offset.
+        handGrip.position.y = forearm.length + HAND_LENGTH / 2;
+      });
+      const handContainer = segmentContainers.hand;
+      if (handContainer) handContainer.position.y = forearm.length;
+    }
+
+    // Same guard applyArmPose applies, hoisted so a degenerate sample can be
+    // rejected before it becomes the smoothing target rather than after.
+    function poseIsUsable(elbowPosition, wristPosition) {
+      return elbowPosition.length() >= 0.05
+        && wristPosition.distanceTo(elbowPosition) >= 0.05;
+    }
+
+    function applyArmPose(elbowPosition, wristPosition) {
+      const upperVector = elbowPosition.clone();
+      const forearmVector = wristPosition.clone().sub(elbowPosition);
+      if (upperVector.length() < 0.05 || forearmVector.length() < 0.05) return false;
+
+      elbowNode.position.copy(elbowPosition);
+      wristNode.position.copy(wristPosition);
+      aimSegment(upperArm, upperVector);
+      aimSegment(forearm, forearmVector);
+
+      relayoutSegments();
+      return true;
+    }
+
+    // A visible standby pose is held until the first valid live frame arrives.
+    applyArmPose(
+      new THREE.Vector3(0.72, -1.28, 0.05),
+      new THREE.Vector3(1.28, -2.45, 0.32),
+    );
+
+    function isTriplet(value) {
+      return Array.isArray(value)
+        && value.length >= 3
+        && value.slice(0, 3).every(Number.isFinite);
+    }
+
+    // Both landmark sets share the same axis orientation (x image-right, y down,
+    // z depth), so only the scale differs between them.
+    function shoulderRelative(point, shoulder, scale) {
+      return new THREE.Vector3(
+        (point[0] - shoulder[0]) * scale,
+        -(point[1] - shoulder[1]) * scale,
+        -(point[2] - shoulder[2]) * scale,
+      );
+    }
+
+    // Latest sample from the backend vs. what is actually on screen. The render
+    // loop closes the gap between them; nothing else moves the arm.
+    const targetElbow = new THREE.Vector3();
+    const targetWrist = new THREE.Vector3();
+    const smoothedElbow = new THREE.Vector3();
+    const smoothedWrist = new THREE.Vector3();
+    let hasPoseTarget = false;
+
+    let lastPoseAt = 0;
+
+    function setTrackingState(state) {
+      trackingPill.classList.remove("is-live", "is-hold");
+      if (state === "live") {
+        trackingPill.classList.add("is-live");
+        trackingLabel.textContent = "Pose live";
+      } else if (state === "hold") {
+        trackingPill.classList.add("is-hold");
+        trackingLabel.textContent = "Pose held";
+      } else {
+        trackingLabel.textContent = "Awaiting pose";
+      }
+    }
+
+    // Displayed anatomy follows the selected arm. An arm is chiral, so this has
+    // to swap in the other side's real meshes rather than flip the current ones
+    // — a mirrored right arm is a left arm, which would put the muscles on the
+    // wrong faces.
+    function setTrackedSide(side) {
+      showArmMeshes(side).catch(() => {});
+    }
+
+    // Named for the arm the user picked, not the one the backend happened to
+    // find, so "raise your left arm" can't tell them to move the wrong one.
+    function armNoun() {
+      return `your ${selectedSide} arm`;
+    }
+
+    function promptTextFor(status) {
+      if (status === "no_person") return "Step into the camera view";
+      if (status === "arm_not_visible") return `Get ${armNoun()} in the camera`;
+      return `Waiting for ${armNoun()}`;
+    }
+
+    function showPrompt(status) {
+      promptText.textContent = promptTextFor(status);
+      prompt.hidden = false;
+    }
+
+    function hidePrompt() {
+      prompt.hidden = true;
+    }
+
+    function hasAllJoints(set) {
+      return Boolean(set)
+        && isTriplet(set.shoulder)
+        && isTriplet(set.elbow)
+        && isTriplet(set.wrist);
+    }
+
+    function handlePose(message) {
+      // Metric first (see ARM_SCALE above for why normalized z is unusable).
+      // Falls back per-frame rather than per-session, so one frame without
+      // world landmarks doesn't drop the twin to normalized permanently.
+      const useMetric = hasAllJoints(message.world_landmarks);
+      const landmarks = useMetric ? message.world_landmarks : message.landmarks;
+      const scale = useMetric ? ARM_SCALE_METRIC : ARM_SCALE;
+
+      if (!hasAllJoints(landmarks)) {
+        // A pose message with no landmarks is the backend actively telling us
+        // the arm isn't visible — distinct from no messages at all (stream
+        // down), which the staleness check below handles.
+        setTrackingState(lastPoseAt ? "hold" : "waiting");
+        showPrompt(message.status);
+        return;
+      }
+
+      const elbowPosition = shoulderRelative(landmarks.elbow, landmarks.shoulder, scale);
+      const wristPosition = shoulderRelative(landmarks.wrist, landmarks.shoulder, scale);
+      if (!poseIsUsable(elbowPosition, wristPosition)) {
+        setTrackingState(lastPoseAt ? "hold" : "waiting");
+        showPrompt(message.status);
+        return;
+      }
+
+      targetElbow.copy(elbowPosition);
+      targetWrist.copy(wristPosition);
+      if (!hasPoseTarget) {
+        // Snap the first sample: easing into it would fly the arm in from the
+        // standby pose, which looks like a glitch rather than a transition.
+        smoothedElbow.copy(elbowPosition);
+        smoothedWrist.copy(wristPosition);
+        hasPoseTarget = true;
+      }
+
+      lastPoseAt = performance.now();
+      hidePrompt();
+      setTrackingState("live");
+    }
+
+    function setConnectionState(state) {
+      connectionPill.classList.remove("is-live", "is-hold");
+      if (state === "live") {
+        connectionPill.classList.add("is-live");
+        connectionLabel.textContent = "WS live";
+      } else if (state === "connecting") {
+        connectionPill.classList.add("is-hold");
+        connectionLabel.textContent = "Connecting";
+      } else {
+        connectionLabel.textContent = "WS offline";
+      }
+    }
+
+    function setArmedState(armed) {
+      armedPill.classList.toggle("is-armed", armed);
+      armedPill.classList.toggle("is-live", !armed);
+      armedLabel.textContent = armed ? "Hardware armed" : "Mock actuation";
+    }
+
+    function websocketUrl() {
+      const override = new URLSearchParams(window.location.search).get("ws");
+      if (override) return override;
+
+      const secure = window.location.protocol === "https:";
+      const scheme = secure ? "wss" : "ws";
+      if (window.location.protocol === "file:") {
+        return "ws://127.0.0.1:8000/ws";
+      }
+
+      // The repo does not serve frontend/ itself. When twin.html is opened from a
+      // local static server, default to FastAPI's normal port rather than that server.
+      const host = window.location.hostname || "127.0.0.1";
+      const port = window.location.port && window.location.port !== "8000"
+        ? "8000"
+        : window.location.port;
+      return `${scheme}://${host}${port ? `:${port}` : ""}/ws`;
+    }
+
+    const wsUrl = websocketUrl();
+    endpoint.textContent = `WS ${wsUrl}`;
+    endpoint.title = wsUrl;
+
+    let socket = null;
+    let reconnectAttempt = 0;
+    let reconnectTimer = null;
+    let allowReconnect = true;
+
+    function sendSide() {
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify({
+        type: "set_side",
+        side: selectedSide,
+      }));
+    }
+
+    function applySideSelection(side) {
+      selectedSide = side;
+      setTrackedSide(side);
+      sideOptions.forEach((button) => {
+        button.classList.toggle("is-selected", button.dataset.side === side);
+      });
+      sendSide();
+    }
+
+    sideOptions.forEach((button) => {
+      button.addEventListener("click", () => applySideSelection(button.dataset.side));
+    });
+
+    function connect() {
+      window.clearTimeout(reconnectTimer);
+      setConnectionState("connecting");
+
+      socket = new WebSocket(wsUrl);
+      socket.addEventListener("open", () => {
+        reconnectAttempt = 0;
+        setConnectionState("live");
+        // The side lives on the backend's single shared estimator, so it can
+        // have been changed by another client (or reset by a restart) while we
+        // were disconnected — re-assert this tab's choice on every connect.
+        sendSide();
+      });
+
+      socket.addEventListener("message", (event) => {
+        let message;
+        try {
+          message = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+
+        if (message.type === "ready") {
+          setArmedState(Boolean(message.armed));
+        } else if (message.type === "pose") {
+          handlePose(message);
+        } else if (message.type === "side") {
+          // Ack only — the UI is the authority on which arm is selected, so a
+          // disagreement here means our set_side did not land, not that we
+          // should follow the server.
+          if (message.side && message.side !== selectedSide) {
+            console.warn(`[twin] backend reports side "${message.side}", UI selected "${selectedSide}"`);
+          }
+        } else if (message.type === "status") {
+          handleStatus(message);
+        }
+      });
+
+      socket.addEventListener("close", () => {
+        setConnectionState("offline");
+        if (lastPoseAt) setTrackingState("hold");
+        if (!allowReconnect) return;
+        reconnectAttempt += 1;
+        const delay = Math.min(RECONNECT_MAX_MS, 500 * 2 ** Math.min(reconnectAttempt, 4));
+        reconnectTimer = window.setTimeout(connect, delay);
+      });
+
+      socket.addEventListener("error", () => {
+        socket.close();
+      });
+    }
+
+    connect();
+
+    window.setInterval(() => {
+      if (lastPoseAt && performance.now() - lastPoseAt > TRACKING_STALE_MS) {
+        setTrackingState("hold");
+      }
+    }, 250);
+
+    let pointerTargetX = DEFAULT_VIEW_YAW;
+    let pointerTargetY = 0;
+    let dragging = false;
+    let previousPointerX = 0;
+    let previousPointerY = 0;
+
+    viewport.addEventListener("pointerdown", (event) => {
+      dragging = true;
+      previousPointerX = event.clientX;
+      previousPointerY = event.clientY;
+      viewport.setPointerCapture(event.pointerId);
+    });
+
+    viewport.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      pointerTargetX += (event.clientX - previousPointerX) * 0.006;
+      pointerTargetY += (event.clientY - previousPointerY) * 0.003;
+      pointerTargetX = THREE.MathUtils.clamp(pointerTargetX, -0.9, 0.7);
+      pointerTargetY = THREE.MathUtils.clamp(pointerTargetY, -0.28, 0.28);
+      previousPointerX = event.clientX;
+      previousPointerY = event.clientY;
+    });
+
+    function endDrag(event) {
+      dragging = false;
+      if (viewport.hasPointerCapture(event.pointerId)) {
+        viewport.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    viewport.addEventListener("pointerup", endDrag);
+    viewport.addEventListener("pointercancel", endDrag);
+
+    const resizeObserver = new ResizeObserver(() => {
+      const width = Math.max(1, mount.clientWidth);
+      const height = Math.max(1, mount.clientHeight);
+      camera.aspect = width / height;
+      // Framing is recomputed every frame, so the new aspect is picked up on the
+      // next one — only the projection needs refreshing here.
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    });
+    resizeObserver.observe(mount);
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      // getDelta() must come first — it advances the clock; elapsedTime is then
+      // read as a property so the clock is not stepped twice in one frame.
+      const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA_S);
+      const elapsed = clock.elapsedTime;
+
+      if (hasPoseTarget) {
+        const poseK = 1 - Math.exp(-POSE_SMOOTHING_RATE * delta);
+        smoothedElbow.lerp(targetElbow, poseK);
+        smoothedWrist.lerp(targetWrist, poseK);
+        applyArmPose(smoothedElbow, smoothedWrist);
+      }
+
+      const viewK = 1 - Math.exp(-VIEW_SMOOTHING_RATE * delta);
+      presentationRig.rotation.y += (pointerTargetX - presentationRig.rotation.y) * viewK;
+      presentationRig.rotation.x += (pointerTargetY - presentationRig.rotation.x) * viewK;
+
+      // After the pose and the drag rotation are applied, so the measurement is
+      // of the arm exactly as it will be drawn this frame. The camera itself
+      // never moves — only its field of view changes.
+      updateCameraFraming();
+
+      if (targetCameraFov > camera.fov) {
+        camera.fov = targetCameraFov;              // widen now, never clip
+        camera.updateProjectionMatrix();
+      } else if (camera.fov - targetCameraFov > 0.01) {
+        camera.fov += (targetCameraFov - camera.fov) * (1 - Math.exp(-FOV_CONTRACT_RATE * delta));
+        camera.updateProjectionMatrix();
+      }
+
+      activePads.forEach((pad) => {
+        const targetName = padToTarget[pad];
+        const pulse = 1.18 + Math.sin(elapsed * 9) * 0.34;
+        targetMaterials.get(targetName).forEach((material) => {
+          material.emissiveIntensity = pulse;
+        });
+      });
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.addEventListener("pagehide", () => {
+      allowReconnect = false;
+      window.clearTimeout(reconnectTimer);
+      socket?.close();
+      resizeObserver.disconnect();
+      renderer.dispose();
+    });
+  </script>
+</body>
+</html>
