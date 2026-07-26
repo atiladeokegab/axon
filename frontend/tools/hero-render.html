@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Axon — Hero sequence renderer (internal tool)</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #07100f; color: #f4f1e8; font-family: "IBM Plex Mono", Consolas, monospace; }
+    body { display: flex; flex-direction: column; gap: 12px; padding: 16px; box-sizing: border-box; }
+    p.note { max-width: 60ch; font-size: 13px; color: #93a29b; line-height: 1.5; }
+    #stage { position: relative; width: 900px; height: 900px; max-width: 100%; aspect-ratio: 1; border: 1px solid rgba(162,193,181,0.25); background: #07100f; }
+    #stage canvas { display: block; width: 100%; height: 100%; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button { font: inherit; padding: 10px 16px; border: 1px solid #87f7c7; background: #102a24; color: #b3ffdf; cursor: pointer; }
+    button:hover { background: #183b31; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    #status { font-size: 12px; color: #93a29b; }
+    .previews { display: flex; gap: 12px; flex-wrap: wrap; }
+    .previews figure { margin: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+    .previews img { width: 160px; height: 160px; object-fit: cover; border: 1px solid rgba(162,193,181,0.25); background: #000; }
+    .previews figcaption { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #93a29b; }
+  </style>
+</head>
+<body>
+  <p class="note">
+    Internal tool — not part of the shipped site. Renders the real arm rig (real BodyParts3D
+    muscle + hand-bone meshes, same reference pose as twin.html) in four material passes —
+    hand, muscle, bone, digital — and exports each as a PNG for the landing-page hero crossfade.
+    Requires the frontend/ directory to be served over HTTP (not file://) so the .obj assets load.
+  </p>
+  <div class="controls">
+    <button id="btn-render" disabled>Loading rig…</button>
+    <button id="btn-download-all" disabled>Download all 4 PNGs</button>
+    <button id="btn-save-all" disabled title="Requires scripts/dev_save_server.py">Save into assets/hero</button>
+    <span id="status">loading meshes…</span>
+  </div>
+  <div id="stage"></div>
+  <div class="previews" id="previews"></div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+    import { OBJLoader } from "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/OBJLoader.js";
+
+    // --- Asset manifest (right arm only — same as twin.html's DEFAULT_MESH_SIDE) ---
+    const ASSET_DIR = "../assets/bp3d";
+    const MUSCLE_ASSET_MANIFEST = {
+      bicep: ["FJ1478", "FJ1512"],
+      tricep: ["FJ1479", "FJ1480", "FJ1477"],
+      frontDelt: ["FJ1468", "FJ1467"],
+      rearDelt: ["FJ1513"],
+      forearmFlexor: ["FJ1496", "FJ1502", "FJ1475", "FJ1499", "FJ1497"],
+      forearmExtensor: ["FJ1487", "FJ1490", "FJ1489", "FJ1492", "FJ1472", "FJ1517"],
+      handGrip: [
+        "FJ3350", "FJ3352", "FJ3354", "FJ3356", "FJ3358",
+        "FJ3327", "FJ3322", "FJ3325", "FJ3326", "FJ3323",
+        "FJ3303", "FJ3306", "FJ3292", "FJ3304",
+        "FJ3198", "FJ3193", "FJ3196", "FJ3197", "FJ3194",
+      ],
+    };
+    const HAND_LENGTH = 0.55;
+    const AXIS_SLAB_FRACTION = 0.12;
+    const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+    function assetUrlsFor(muscle) {
+      return MUSCLE_ASSET_MANIFEST[muscle].map((id) => `${ASSET_DIR}/${id}.obj`);
+    }
+
+    // --- Scene / camera / lights (mirrors twin.html's tuned setup) ---
+    const mount = document.querySelector("#stage");
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x07100f, 0.078);
+
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    camera.position.set(1.45, -0.15, 8.4);
+    const CAMERA_LOOK_AT = new THREE.Vector3(0, -1.15, 0);
+    camera.lookAt(CAMERA_LOOK_AT);
+    const CAMERA_FOV_MARGIN = 1.14;
+    const CAMERA_FOV_MIN = 24;
+    const CAMERA_FOV_MAX = 82;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.setClearColor(0x07100f, 1);
+    mount.appendChild(renderer.domElement);
+
+    function resize() {
+      const size = Math.max(1, mount.clientWidth);
+      camera.aspect = 1;
+      camera.updateProjectionMatrix();
+      renderer.setSize(size, size, false);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    scene.add(new THREE.HemisphereLight(0xbfead8, 0x17211d, 1.85));
+    const keyLight = new THREE.DirectionalLight(0xffd8c8, 4.2);
+    keyLight.position.set(3.5, 4.5, 5.5);
+    scene.add(keyLight);
+    const rimLight = new THREE.PointLight(0x58f3bd, 15, 9, 2);
+    rimLight.position.set(-3.2, 0.8, -1.2);
+    scene.add(rimLight);
+
+    const floor = new THREE.GridHelper(11, 22, 0x2c5a4b, 0x163128);
+    floor.position.set(0, -3.55, 0);
+    floor.material.transparent = true;
+    floor.material.opacity = 0.26;
+    scene.add(floor);
+
+    // --- Rig (same structure/pose as twin.html) ---
+    const presentationRig = new THREE.Object3D();
+    presentationRig.rotation.y = -0.62; // three-quarter view, matches twin.html
+    scene.add(presentationRig);
+
+    const armRoot = new THREE.Object3D();
+    armRoot.scale.x = -1; // mirror, matches twin.html's presentation transform
+    presentationRig.add(armRoot);
+
+    const shoulderNode = new THREE.Object3D();
+    armRoot.add(shoulderNode);
+    const elbowNode = new THREE.Object3D();
+    armRoot.add(elbowNode);
+    const wristNode = new THREE.Object3D();
+    armRoot.add(wristNode);
+
+    // Procedural long-bone tone; the skin shell has its own physical material.
+    const BONE_TONE = 0xbdb79f;
+
+    const boneMaterial = new THREE.MeshStandardMaterial({ color: BONE_TONE, roughness: 0.66, metalness: 0.04 });
+    const jointMaterial = new THREE.MeshStandardMaterial({ color: 0xe2dbc0, roughness: 0.55, metalness: 0.02 });
+
+    function makeJoint(radius) {
+      return new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 18), jointMaterial.clone());
+    }
+    const shoulderJoint = makeJoint(0.085);
+    shoulderNode.add(shoulderJoint);
+    const elbowJoint = makeJoint(0.075);
+    elbowNode.add(elbowJoint);
+
+    const shoulderStub = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.12, 0.34, 7, 16),
+      new THREE.MeshStandardMaterial({ color: 0x858679, roughness: 0.72, metalness: 0.03 }),
+    );
+    shoulderStub.position.set(0.3, 0.04, -0.02); // right side offset, matches orientShoulderStub("right")
+    shoulderStub.rotation.z = Math.PI / 2;
+    shoulderNode.add(shoulderStub);
+
+    function makeSegment(parent) {
+      const pivot = new THREE.Object3D();
+      parent.add(pivot);
+      const bone = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 1, 14), boneMaterial.clone());
+      pivot.add(bone);
+      return { pivot, bone, length: 1 };
+    }
+    const upperArm = makeSegment(shoulderNode);
+    const forearm = makeSegment(elbowNode);
+
+    function muscleMaterial(color) {
+      return new THREE.MeshPhysicalMaterial({
+        color, emissive: 0x3a0904, emissiveIntensity: 0.42,
+        roughness: 0.5, metalness: 0.02, clearcoat: 0.22, clearcoatRoughness: 0.65,
+      });
+    }
+    function makeMuscle(radius, length, color) {
+      const group = new THREE.Object3D();
+      const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 10, 22), muscleMaterial(color));
+      group.add(mesh);
+      return group;
+    }
+
+    const MUSCLE_COLOR = {
+      bicep: 0xc04a3c, tricep: 0x8a2f30, frontDelt: 0xd2593e,
+      rearDelt: 0x74272c, forearmFlexor: 0xb04434, forearmExtensor: 0x792a2a,
+    };
+
+    const bicep = makeMuscle(0.155, 0.78, MUSCLE_COLOR.bicep);
+    bicep.position.z = 0.15; bicep.rotation.x = 0.07;
+    upperArm.pivot.add(bicep);
+    const tricep = makeMuscle(0.14, 0.86, MUSCLE_COLOR.tricep);
+    tricep.position.z = -0.16; tricep.rotation.x = -0.06;
+    upperArm.pivot.add(tricep);
+    const frontDelt = makeMuscle(0.18, 0.34, MUSCLE_COLOR.frontDelt);
+    frontDelt.position.set(-0.08, 0.24, 0.2); frontDelt.rotation.z = -0.34;
+    upperArm.pivot.add(frontDelt);
+    const rearDelt = makeMuscle(0.17, 0.36, MUSCLE_COLOR.rearDelt);
+    rearDelt.position.set(0.07, 0.23, -0.2); rearDelt.rotation.z = 0.34;
+    upperArm.pivot.add(rearDelt);
+    const forearmFlexor = makeMuscle(0.1, 0.7, MUSCLE_COLOR.forearmFlexor);
+    forearmFlexor.position.z = 0.1; forearmFlexor.rotation.x = 0.05;
+    forearm.pivot.add(forearmFlexor);
+    const forearmExtensor = makeMuscle(0.095, 0.72, MUSCLE_COLOR.forearmExtensor);
+    forearmExtensor.position.z = -0.11; forearmExtensor.rotation.x = -0.05;
+    forearm.pivot.add(forearmExtensor);
+
+    const handBoneMaterial = boneMaterial.clone();
+    const handGrip = makeMuscle(0.1, HAND_LENGTH, 0xcdc4a8);
+    forearm.pivot.add(handGrip);
+
+    const muscleSlots = { bicep, tricep, frontDelt, rearDelt, forearmFlexor, forearmExtensor, handGrip };
+    function meshMaterialFor(muscleName) {
+      return muscleName === "handGrip" ? handBoneMaterial.clone() : muscleMaterial(MUSCLE_COLOR[muscleName]);
+    }
+
+    const JOINT_SOURCES = {
+      upperArm: { shaft: ["bicep", "tricep"], joints: ["shoulder", "elbow"] },
+      hand: { shaft: ["handGrip"], joints: ["wrist", "fingertip"] },
+    };
+    const ARM_SEGMENTS = {
+      upperArm: { pivot: () => upperArm.pivot, from: "shoulder", to: "elbow", muscles: ["bicep", "tricep", "frontDelt", "rearDelt"] },
+      forearm: { pivot: () => forearm.pivot, from: "elbow", to: "wrist", muscles: ["forearmFlexor", "forearmExtensor"] },
+      hand: { pivot: () => forearm.pivot, from: "wrist", to: "fingertip", muscles: ["handGrip"] },
+    };
+    const segmentContainers = {};
+
+    function measureSegmentAxis(objects) {
+      const meshes = [];
+      for (const object of objects) object.traverse((child) => { if (child.isMesh) meshes.push(child); });
+      if (meshes.length === 0) return null;
+      let zMin = Infinity, zMax = -Infinity;
+      for (const mesh of meshes) {
+        const position = mesh.geometry.attributes.position;
+        for (let i = 0; i < position.count; i += 1) {
+          const z = position.getZ(i);
+          if (z < zMin) zMin = z;
+          if (z > zMax) zMax = z;
+        }
+      }
+      if (!(zMax > zMin)) return null;
+      const band = (zMax - zMin) * AXIS_SLAB_FRACTION;
+      const proximal = { x: 0, y: 0, z: 0, n: 0 };
+      const distal = { x: 0, y: 0, z: 0, n: 0 };
+      for (const mesh of meshes) {
+        const position = mesh.geometry.attributes.position;
+        for (let i = 0; i < position.count; i += 1) {
+          const z = position.getZ(i);
+          const slab = z >= zMax - band ? proximal : (z <= zMin + band ? distal : null);
+          if (!slab) continue;
+          slab.x += position.getX(i); slab.y += position.getY(i); slab.z += z; slab.n += 1;
+        }
+      }
+      if (proximal.n === 0 || distal.n === 0) return null;
+      return {
+        proximal: new THREE.Vector3(proximal.x / proximal.n, proximal.y / proximal.n, proximal.z / proximal.n),
+        distal: new THREE.Vector3(distal.x / distal.n, distal.y / distal.n, distal.z / distal.n),
+      };
+    }
+
+    function buildSegment(segmentName, loaded, joints) {
+      const spec = ARM_SEGMENTS[segmentName];
+      const proximal = joints[spec.from];
+      const distal = joints[spec.to];
+      const axis = distal.clone().sub(proximal);
+      const axisLength = axis.length();
+      if (!(axisLength > 0)) throw new Error(`degenerate ${spec.from}->${spec.to} axis`);
+      const container = new THREE.Object3D();
+      container.quaternion.setFromUnitVectors(axis.clone().normalize(), Y_AXIS);
+      container.userData.axisLength = axisLength;
+      const recenter = new THREE.Object3D();
+      recenter.position.copy(proximal).negate();
+      container.add(recenter);
+      for (const muscle of spec.muscles) {
+        const slot = muscleSlots[muscle];
+        slot.clear();
+        slot.position.set(0, 0, 0); slot.rotation.set(0, 0, 0); slot.scale.setScalar(1);
+        for (const piece of loaded.get(muscle)) {
+          piece.traverse((child) => {
+            if (!child.isMesh) return;
+            child.material = meshMaterialFor(muscle);
+          });
+          slot.add(piece);
+        }
+        recenter.add(slot);
+      }
+      spec.pivot().add(container);
+      segmentContainers[segmentName] = container;
+    }
+
+    async function loadPieces() {
+      const muscles = Object.keys(MUSCLE_ASSET_MANIFEST);
+      const perMuscle = await Promise.all(
+        muscles.map((muscle) => Promise.all(assetUrlsFor(muscle).map((url) => new OBJLoader().loadAsync(url)))),
+      );
+      const loaded = new Map();
+      muscles.forEach((muscle, index) => loaded.set(muscle, perMuscle[index]));
+      return loaded;
+    }
+
+    function buildArm(loaded) {
+      const joints = {};
+      for (const [sourceName, source] of Object.entries(JOINT_SOURCES)) {
+        const ends = measureSegmentAxis(source.shaft.flatMap((muscle) => loaded.get(muscle)));
+        if (!ends) throw new Error(`could not measure joints from "${sourceName}"`);
+        joints[source.joints[0]] = ends.proximal;
+        joints[source.joints[1]] = ends.distal;
+      }
+      for (const segmentName of Object.keys(ARM_SEGMENTS)) buildSegment(segmentName, loaded, joints);
+      relayoutSegments();
+    }
+
+    function aimSegment(segment, vector) {
+      const length = vector.length();
+      if (length < 0.05) return false;
+      segment.length = length;
+      segment.pivot.quaternion.setFromUnitVectors(Y_AXIS, vector.clone().normalize());
+      segment.bone.position.y = length / 2;
+      segment.bone.scale.y = length;
+      return true;
+    }
+
+    function layoutSegment(segmentName, boneLength) {
+      const container = segmentContainers[segmentName];
+      if (!container) return;
+      container.scale.setScalar(boneLength / container.userData.axisLength);
+    }
+
+    function relayoutSegments() {
+      layoutSegment("upperArm", upperArm.length);
+      layoutSegment("forearm", forearm.length);
+      layoutSegment("hand", HAND_LENGTH);
+      const handContainer = segmentContainers.hand;
+      if (handContainer) handContainer.position.y = forearm.length;
+    }
+
+    function applyArmPose(elbowPosition, wristPosition) {
+      const upperVector = elbowPosition.clone();
+      const forearmVector = wristPosition.clone().sub(elbowPosition);
+      elbowNode.position.copy(elbowPosition);
+      wristNode.position.copy(wristPosition);
+      aimSegment(upperArm, upperVector);
+      aimSegment(forearm, forearmVector);
+      relayoutSegments();
+    }
+
+    // Same standby/reference pose twin.html holds before any live tracking
+    // arrives — this is the "gesture" the four stages share.
+    applyArmPose(
+      new THREE.Vector3(0.72, -1.28, 0.05),
+      new THREE.Vector3(1.28, -2.45, 0.32),
+    );
+
+    // The source rig has real muscle and hand-bone geometry, but no skin or
+    // robotic-shell assets. Build both missing layers procedurally on the same
+    // fixed pivots so every exported pass keeps exactly the same gesture.
+    const skinMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xd6a078,
+      roughness: 0.58,
+      metalness: 0.01,
+      clearcoat: 0.18,
+      clearcoatRoughness: 0.72,
+    });
+    const robotPlateMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x0a4436,
+      emissive: 0x20b986,
+      emissiveIntensity: 0.72,
+      roughness: 0.24,
+      metalness: 0.78,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.18,
+    });
+    const robotWireMaterial = new THREE.MeshBasicMaterial({
+      color: 0xb3ffdf,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.52,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const robotJointMaterial = new THREE.MeshBasicMaterial({
+      color: 0x87f7c7,
+      transparent: true,
+      opacity: 0.86,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const skinMeshes = [];
+    const robotMeshes = [];
+
+    function addSkinMesh(parent, geometry, position, scale = null, rotationZ = 0) {
+      const mesh = new THREE.Mesh(geometry, skinMaterial);
+      mesh.position.copy(position);
+      if (scale) mesh.scale.copy(scale);
+      mesh.rotation.z = rotationZ;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      skinMeshes.push(mesh);
+      return mesh;
+    }
+
+    function addRobotClone(source) {
+      const plate = new THREE.Mesh(source.geometry, robotPlateMaterial);
+      plate.position.copy(source.position);
+      plate.quaternion.copy(source.quaternion);
+      plate.scale.copy(source.scale);
+      plate.castShadow = true;
+      source.parent.add(plate);
+
+      const wire = new THREE.Mesh(source.geometry, robotWireMaterial);
+      wire.position.copy(source.position);
+      wire.quaternion.copy(source.quaternion);
+      wire.scale.copy(source.scale).multiplyScalar(1.012);
+      wire.renderOrder = 3;
+      source.parent.add(wire);
+      robotMeshes.push(plate, wire);
+    }
+
+    function addRobotJoint(parent, position, radius) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.014, 10, 48),
+        robotJointMaterial,
+      );
+      ring.position.copy(position);
+      ring.rotation.x = Math.PI / 2;
+      ring.renderOrder = 4;
+      parent.add(ring);
+      robotMeshes.push(ring);
+    }
+
+    // Soft-tissue envelope: tapered arm shells plus an open, relaxed hand.
+    addSkinMesh(
+      upperArm.pivot,
+      new THREE.CylinderGeometry(0.13, 0.19, Math.max(0.1, upperArm.length - 0.08), 32, 2),
+      new THREE.Vector3(0, upperArm.length / 2, 0),
+    );
+    addSkinMesh(
+      shoulderNode,
+      new THREE.SphereGeometry(1, 28, 20),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0.23, 0.25, 0.21),
+    );
+    addSkinMesh(
+      elbowNode,
+      new THREE.SphereGeometry(1, 24, 18),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0.135, 0.145, 0.13),
+    );
+    addSkinMesh(
+      forearm.pivot,
+      new THREE.CylinderGeometry(0.09, 0.14, Math.max(0.1, forearm.length - 0.06), 32, 2),
+      new THREE.Vector3(0, forearm.length / 2, 0),
+    );
+    addSkinMesh(
+      forearm.pivot,
+      new THREE.SphereGeometry(1, 24, 18),
+      new THREE.Vector3(0, forearm.length, 0),
+      new THREE.Vector3(0.1, 0.095, 0.09),
+    );
+    addSkinMesh(
+      forearm.pivot,
+      new THREE.SphereGeometry(1, 28, 20),
+      new THREE.Vector3(0, forearm.length + 0.17, 0.004),
+      new THREE.Vector3(0.135, 0.19, 0.075),
+    );
+
+    const fingerSpecs = [
+      { x: -0.078, y: 0.29, length: 0.18, radius: 0.019, spread: -0.11 },
+      { x: -0.038, y: 0.30, length: 0.225, radius: 0.021, spread: -0.045 },
+      { x: 0.004, y: 0.305, length: 0.245, radius: 0.022, spread: 0.008 },
+      { x: 0.046, y: 0.295, length: 0.22, radius: 0.021, spread: 0.075 },
+    ];
+    for (const finger of fingerSpecs) {
+      addSkinMesh(
+        forearm.pivot,
+        new THREE.CapsuleGeometry(
+          finger.radius,
+          Math.max(0.04, finger.length - finger.radius * 2),
+          8,
+          18,
+        ),
+        new THREE.Vector3(
+          finger.x,
+          forearm.length + finger.y + finger.length / 2,
+          0.008,
+        ),
+        null,
+        finger.spread,
+      );
+    }
+    addSkinMesh(
+      forearm.pivot,
+      new THREE.CapsuleGeometry(0.025, 0.12, 8, 18),
+      new THREE.Vector3(0.135, forearm.length + 0.225, 0.008),
+      null,
+      -0.72,
+    );
+
+    // The robotic stage is a jade material-and-wire pass over that exact shell,
+    // with rings at the real rig joints so it reads as engineered rather than
+    // simply recoloured skin.
+    skinMeshes.forEach(addRobotClone);
+    addRobotJoint(upperArm.pivot, new THREE.Vector3(0, 0.025, 0), 0.205);
+    addRobotJoint(forearm.pivot, new THREE.Vector3(0, 0.02, 0), 0.15);
+    addRobotJoint(forearm.pivot, new THREE.Vector3(0, forearm.length, 0), 0.105);
+    skinMeshes.forEach((mesh) => (mesh.visible = false));
+    robotMeshes.forEach((mesh) => (mesh.visible = false));
+
+    function fitCameraToArm() {
+      const box = new THREE.Box3().setFromObject(armRoot);
+      if (box.isEmpty()) return;
+      camera.updateMatrixWorld();
+      const inverse = camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+      let maxTanY = 0, maxTanX = 0;
+      const corner = new THREE.Vector3();
+      for (let i = 0; i < 8; i += 1) {
+        corner.set(
+          i & 1 ? box.max.x : box.min.x,
+          i & 2 ? box.max.y : box.min.y,
+          i & 4 ? box.max.z : box.min.z,
+        ).applyMatrix4(inverse);
+        const depth = -corner.z;
+        if (depth <= 0.01) continue;
+        maxTanY = Math.max(maxTanY, Math.abs(corner.y) / depth);
+        maxTanX = Math.max(maxTanX, Math.abs(corner.x) / depth);
+      }
+      if (maxTanY === 0 && maxTanX === 0) return;
+      const requiredTan = Math.max(maxTanY, maxTanX / (camera.aspect || 1)) * CAMERA_FOV_MARGIN;
+      camera.fov = THREE.MathUtils.clamp(
+        THREE.MathUtils.radToDeg(Math.atan(requiredTan)) * 2,
+        CAMERA_FOV_MIN, CAMERA_FOV_MAX,
+      );
+      camera.updateProjectionMatrix();
+    }
+
+    // --- Stage definitions -----------------------------------------------
+    const muscleGroups = [bicep, tricep, frontDelt, rearDelt, forearmFlexor, forearmExtensor];
+    const boneMeshes = [upperArm.bone, forearm.bone];
+    const jointMeshes = [shoulderJoint, elbowJoint, shoulderStub];
+
+    function setVisible(objects, visible) {
+      objects.forEach((object) => (object.visible = visible));
+    }
+
+    function setBoneTone(color) {
+      for (const mesh of boneMeshes) mesh.material.color.set(color);
+    }
+
+    function setJointTone(color) {
+      for (const mesh of jointMeshes) mesh.material.color.set(color);
+    }
+
+    function setWireframe(objects, on) {
+      for (const obj of objects) {
+        obj.traverse((child) => {
+          if (child.isMesh) child.material.wireframe = on;
+        });
+      }
+    }
+
+    function styleHandBones(color, wireframe = false) {
+      handGrip.traverse((child) => {
+        if (!child.isMesh) return;
+        child.material.color.set(color);
+        child.material.wireframe = wireframe;
+      });
+    }
+
+    const STAGES = [
+      {
+        key: "hand", label: "Hand",
+        apply() {
+          scene.overrideMaterial = null;
+          setVisible(muscleGroups, false);
+          setVisible(boneMeshes, false);
+          setVisible(jointMeshes, false);
+          handGrip.visible = false;
+          setVisible(robotMeshes, false);
+          setVisible(skinMeshes, true);
+        },
+      },
+      {
+        key: "muscle", label: "Muscle",
+        apply() {
+          scene.overrideMaterial = null;
+          setVisible(skinMeshes, false);
+          setVisible(robotMeshes, false);
+          setVisible(muscleGroups, true);
+          setVisible(boneMeshes, false);
+          setVisible(jointMeshes, false);
+          handGrip.visible = true;
+          styleHandBones(BONE_TONE, false);
+        },
+      },
+      {
+        key: "bone", label: "Bone",
+        apply() {
+          scene.overrideMaterial = null;
+          setVisible(skinMeshes, false);
+          setVisible(robotMeshes, false);
+          setVisible(muscleGroups, false);
+          setVisible(boneMeshes, true);
+          setVisible(jointMeshes, true);
+          handGrip.visible = true;
+          setBoneTone(0xf2ede0);
+          setJointTone(0xf2ede0);
+          setWireframe(boneMeshes, false);
+          styleHandBones(0xf2ede0, false);
+        },
+      },
+      {
+        key: "digital", label: "Digital",
+        apply() {
+          scene.overrideMaterial = null;
+          setVisible(skinMeshes, false);
+          setVisible(muscleGroups, false);
+          setVisible(boneMeshes, false);
+          setVisible(jointMeshes, false);
+          handGrip.visible = false;
+          setVisible(robotMeshes, true);
+        },
+      },
+    ];
+
+    const statusEl = document.querySelector("#status");
+    const renderBtn = document.querySelector("#btn-render");
+    const downloadAllBtn = document.querySelector("#btn-download-all");
+    const saveAllBtn = document.querySelector("#btn-save-all");
+    const previews = document.querySelector("#previews");
+    const dataUrls = {};
+
+    function renderStage(stage) {
+      stage.apply();
+      renderer.render(scene, camera);
+      return renderer.domElement.toDataURL("image/png");
+    }
+
+    function renderAllStages() {
+      previews.innerHTML = "";
+      for (const stage of STAGES) {
+        const url = renderStage(stage);
+        dataUrls[stage.key] = url;
+        const figure = document.createElement("figure");
+        const img = document.createElement("img");
+        img.src = url;
+        const caption = document.createElement("figcaption");
+        caption.textContent = stage.label;
+        const saveBtn = document.createElement("button");
+        saveBtn.textContent = "Save PNG";
+        saveBtn.addEventListener("click", () => download(stage.key, dataUrls[stage.key]));
+        figure.append(img, caption, saveBtn);
+        previews.appendChild(figure);
+      }
+      // Leave the "digital" pass rendered on the live canvas since it's the
+      // most representative frame to eyeball for framing.
+      renderStage(STAGES[STAGES.length - 1]);
+      downloadAllBtn.disabled = false;
+      saveAllBtn.disabled = false;
+      statusEl.textContent = "rendered — review previews, then download";
+      document.documentElement.dataset.renderState = "rendered";
+      window.__heroDataUrls = dataUrls;
+      return dataUrls;
+    }
+
+    function download(key, url) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hero-${key}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    downloadAllBtn.addEventListener("click", () => {
+      STAGES.forEach((stage, index) => {
+        setTimeout(() => download(stage.key, dataUrls[stage.key]), index * 350);
+      });
+    });
+
+    async function saveAllToProject() {
+      saveAllBtn.disabled = true;
+      statusEl.textContent = "saving into frontend/assets/hero...";
+      try {
+        for (const stage of STAGES) {
+          const blob = await (await fetch(dataUrls[stage.key])).blob();
+          const response = await fetch(`/__save/hero-${stage.key}.png`, {
+            method: "POST",
+            headers: { "Content-Type": "image/png" },
+            body: blob,
+          });
+          if (!response.ok) throw new Error(`save failed for ${stage.key}: HTTP ${response.status}`);
+        }
+        statusEl.textContent = "saved all 4 PNGs into frontend/assets/hero";
+        document.documentElement.dataset.renderState = "saved";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "save failed - run scripts/dev_save_server.py, then retry";
+        document.documentElement.dataset.renderState = "save-failed";
+      } finally {
+        saveAllBtn.disabled = false;
+      }
+    }
+
+    saveAllBtn.addEventListener("click", saveAllToProject);
+    renderBtn.addEventListener("click", renderAllStages);
+    window.__renderAllStages = renderAllStages;
+    window.__saveAllToProject = saveAllToProject;
+
+    (async () => {
+      try {
+        const loaded = await loadPieces();
+        buildArm(loaded);
+        fitCameraToArm();
+        renderer.render(scene, camera);
+        statusEl.textContent = "rig loaded — click render";
+        renderBtn.disabled = false;
+        renderBtn.textContent = "Render 4 stages";
+        if (new URLSearchParams(window.location.search).get("save") === "1") {
+          renderAllStages();
+          await saveAllToProject();
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "failed to load meshes — see console (must be served over http://, not file://)";
+      }
+    })();
+  </script>
+</body>
+</html>

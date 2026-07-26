@@ -1,36 +1,34 @@
-/* Axon design system — shared by landing.html, twin.html, results.html.
-   Single source for color tokens and the CTA button styles all three pages
-   use; page-specific layout (viewports, status pills, choice cards, etc.)
-   stays inline in each page. See the plan's "Scoping note" for why. */
-
 :root {
   color-scheme: dark;
 
-  --bg:        #0a0e13;
-  --surface:   #121820;
-  --surface-2: #182029;
-  --line:      #232c36;
+  --bg:        #07100f;
+  --surface:   #0d211d;
+  --surface-2: #10231f;
+  --line:      rgba(162, 193, 181, 0.2);
 
-  --text:      #eef1f0;
-  --text-2:    #8fa0a6;
-  --text-3:    #57646b;
+  --text:      #f4f1e8;
+  --text-2:    #c8cec6;
+  --text-3:    #93a29b;
 
-  --accent:    #2fbe93;   /* progress, live, confirmed — a monitor jade, not a SaaS mint */
-  --accent-dim: rgba(47, 190, 147, 0.14);
-  --warn:      #f2a649;
-  --warn-dim:  rgba(242, 166, 73, 0.14);
-  --stop:      #f0604d;
-  --stop-dim:  rgba(240, 96, 77, 0.14);
+  --accent:    #87f7c7;   /* jade signal — progress, live, confirmed */
+  --accent-strong: #b3ffdf;
+  --accent-dim: rgba(135, 247, 199, 0.13);
+  --warn:      #ffd65c;
+  --warn-dim:  rgba(255, 214, 92, 0.14);
+  --stop:      #ff8066;
+  --stop-dim:  rgba(255, 107, 74, 0.13);
 
   --r-sm: 8px;
   --r-md: 14px;
   --r-lg: 20px;
 
-  --sans: "IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --sans: Bahnschrift, "Avenir Next Condensed", "Segoe UI", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --site-header-height: clamp(3.9rem, 7vh, 4.75rem);
 }
 
 * { box-sizing: border-box; }
@@ -52,7 +50,7 @@ body {
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   background-image:
-    radial-gradient(120% 60% at 50% -10%, rgba(47, 190, 147, 0.05) 0%, transparent 60%),
+    radial-gradient(120% 60% at 50% -10%, rgba(135, 247, 199, 0.05) 0%, transparent 60%),
     repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 3px);
 }
 
@@ -66,11 +64,14 @@ a { color: inherit; }
   border-radius: 999px;
   background: var(--accent);
   color: #05201a;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.008em;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 10px 24px -10px rgba(47, 190, 147, 0.55);
+  box-shadow: 0 10px 24px -10px rgba(135, 247, 199, 0.55);
   transition:
     transform 140ms var(--ease-out),
     opacity 160ms var(--ease-out),
@@ -84,7 +85,7 @@ a { color: inherit; }
 }
 .flow-primary:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 .flow-primary:disabled { opacity: 0.22; cursor: default; box-shadow: none; }
-.flow-primary.is-stop { background: var(--stop); color: #260a06; box-shadow: 0 10px 24px -10px rgba(240, 96, 77, 0.55); }
+.flow-primary.is-stop { background: var(--stop); color: #260a06; box-shadow: 0 10px 24px -10px rgba(255, 107, 74, 0.55); }
 
 .flow-secondary {
   height: 48px;
@@ -92,8 +93,12 @@ a { color: inherit; }
   border: none;
   background: none;
   color: var(--text-3);
-  font-size: 14px;
+  font-family: var(--mono);
+  font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-decoration: none;
   cursor: pointer;
   transition: color 140ms var(--ease-out), transform 120ms var(--ease-out);
 }
@@ -101,6 +106,203 @@ a { color: inherit; }
 .flow-secondary:active { transform: scale(0.96); }
 @media (hover: hover) and (pointer: fine) {
   .flow-secondary:hover { color: var(--text); }
+}
+
+/* ------------------------------------------------------------ site header --- */
+/* Reused on landing.html and results.html. Not used on twin.html, which
+   already has its own bespoke .topbar with live session controls — a second
+   header there would duplicate it. */
+
+.site-with-header { padding-top: var(--site-header-height); }
+
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  width: 100%;
+  height: var(--site-header-height);
+  overflow: hidden;
+  border-bottom: 1px solid rgba(135, 247, 199, 0.18);
+  background: var(--bg);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+}
+
+.site-header__inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(1rem, 3vw, 3rem);
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 clamp(0.9rem, 3vw, 2.5rem);
+}
+
+.site-header__brand {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  text-shadow: 0 0 12px rgba(135, 247, 199, 0.2);
+  text-transform: uppercase;
+}
+
+.site-header__brand-mark {
+  width: 0.58rem;
+  height: 0.58rem;
+  border: 1px solid var(--accent);
+  background: rgba(135, 247, 199, 0.16);
+  box-shadow: 0 0 8px rgba(135, 247, 199, 0.7), inset 0 0 4px rgba(135, 247, 199, 0.5);
+  transform: rotate(45deg);
+}
+
+.site-header__note {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* --------------------------------------------------------- electric rail --- */
+
+.electric-rail {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  height: clamp(4rem, 7vh, 5.5rem);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.82;
+}
+.electric-rail--top {
+  top: 0;
+  bottom: auto;
+  z-index: 4;
+  height: clamp(1.8rem, 3.5vh, 2.4rem);
+  opacity: 0.9;
+  transform: scaleY(-1);
+}
+.site-header .electric-rail--top {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+}
+.electric-rail svg { display: block; width: 100%; height: 100%; }
+.electric-rail__trace, .electric-rail__pulse { fill: none; vector-effect: non-scaling-stroke; }
+.electric-rail__trace { stroke: rgba(135, 247, 199, 0.13); stroke-width: 1.35; }
+.electric-rail__pulse {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 3 44 18 120;
+  filter: drop-shadow(0 0 3px rgba(135, 247, 199, 0.52));
+  animation: electricity-run 7.6s linear infinite;
+}
+.electric-rail__pulse--echo {
+  stroke: var(--accent-strong);
+  stroke-width: 1.05;
+  stroke-dasharray: 1 92 8 160;
+  opacity: 0.7;
+  animation-duration: 7.2s;
+  animation-direction: reverse;
+}
+.electric-rail--top .electric-rail__pulse { animation-direction: reverse; }
+.electric-rail--top .electric-rail__pulse--echo { animation-direction: normal; }
+
+@keyframes electricity-run {
+  0% { stroke-dashoffset: 0; opacity: 0.35; }
+  12%, 72% { opacity: 1; }
+  100% { stroke-dashoffset: -420; opacity: 0.45; }
+}
+
+/* ---------------------------------------------------------- signal field --- */
+/* Ambient animated background, landing.html only. */
+
+.signal-field {
+  --signal-shift-x: 0px;
+  --signal-shift-y: 0px;
+  --signal-light-x: 50%;
+  --signal-light-y: 50%;
+  position: fixed;
+  inset: -2rem;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.76;
+  transform: translate3d(var(--signal-shift-x), var(--signal-shift-y), 0);
+  transition: transform 180ms linear;
+  will-change: transform;
+}
+.signal-field::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: radial-gradient(
+    circle at var(--signal-light-x) var(--signal-light-y),
+    rgba(135, 247, 199, 0.065),
+    transparent 24%
+  );
+}
+.signal-field svg { position: relative; z-index: 1; display: block; width: 100%; height: 100%; }
+.signal-field__drift { animation: signal-field-drift 32s ease-in-out infinite alternate; transform-origin: center; }
+.signal-field__fibres { fill: none; stroke: var(--accent); stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.signal-field__fibres--rear { stroke-width: 1; opacity: 0.24; }
+.signal-field__fibres--front { stroke-width: 1.35; opacity: 0.4; }
+.signal-field__fibres--arcs { stroke: var(--warn); stroke-width: 0.85; opacity: 0.13; }
+.signal-field__fibres--cross { stroke: rgba(127, 226, 255, 0.6); stroke-width: 0.9; opacity: 0.22; }
+.signal-field__wave-trace, .signal-field__wave-pulse { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.signal-field__wave-trace { stroke: rgba(127, 226, 255, 0.34); stroke-width: 1.1; }
+.signal-field__wave-pulse {
+  stroke: var(--accent);
+  stroke-width: 1.25;
+  stroke-dasharray: 2 168 18 260;
+  opacity: 0.72;
+  animation: signal-pulse 14s linear infinite;
+}
+.signal-field__nodes { fill: rgba(135, 247, 199, 0.16); stroke: rgba(127, 226, 255, 0.48); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+@keyframes signal-field-drift {
+  from { transform: translate3d(-0.35%, -0.2%, 0) scale(1); }
+  to { transform: translate3d(0.35%, 0.2%, 0) scale(1.008); }
+}
+@keyframes signal-pulse {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -448; }
+}
+
+/* --------------------------------------------------------------- card --- */
+
+.card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 880px);
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.52), inset 0 1px rgba(135, 247, 199, 0.025);
+}
+.card::before {
+  position: absolute;
+  top: -1px;
+  left: clamp(1.25rem, 4vw, 2.5rem);
+  width: clamp(5rem, 15vw, 10rem);
+  height: 1px;
+  content: "";
+  background: var(--accent);
+  box-shadow: 0 0 14px rgba(135, 247, 199, 0.7);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -111,4 +313,5 @@ a { color: inherit; }
     transition-duration: 140ms !important;
   }
   .flow-primary:active, .flow-secondary:active, .flow-primary:hover { transform: none !important; }
+  .signal-field { transform: none; }
 }
