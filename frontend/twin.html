@@ -33,32 +33,13 @@
     .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
     .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 9px;
       margin: 0;
       font-size: 19px;
       font-weight: 700;
       letter-spacing: -0.02em;
-    }
-
-    /* A small steady pulse rather than a logomark — the same "is anything
-       live" question the status strip answers, asked at a glance before you
-       even reach the chrome on the right. Pure CSS so the markup stays a
-       plain <h1>. */
-    .wordmark::before {
-      content: "";
-      display: inline-block;
-      width: 7px;
-      height: 7px;
-      margin-right: 9px;
-      margin-bottom: 1px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-dim);
-      vertical-align: middle;
-      animation: brand-pulse 2400ms ease-in-out infinite;
-    }
-    @keyframes brand-pulse {
-      0%, 100% { opacity: 0.7; }
-      50%      { opacity: 1; box-shadow: 0 0 0 5px var(--accent-dim); }
     }
 
     .brand-note { display: none; }
@@ -472,7 +453,7 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand">
-        <h1 class="wordmark">Axon</h1>
+        <h1 class="wordmark"><guide-dot state="orbiting" style="--gd-size:16px; --gd-dot:6px;"></guide-dot>Axon</h1>
         <span class="brand-note">Motor recovery</span>
       </div>
 
@@ -572,6 +553,7 @@
   <script type="module">
     import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
     import { OBJLoader } from "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/OBJLoader.js";
+    import "./shared/guide-dot.js";
 
     // Metric (metres) landmarks drive the twin; normalized ones are the fallback.
     //
