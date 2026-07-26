@@ -3,73 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#07100f">
+  <meta name="theme-color" content="#0a0e13">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
   <title>Motor Recovery — Live Arm Twin</title>
   <style>
-    /* Axon.
-       One typeface, one accent, everything on an 8px rhythm. Hierarchy comes
-       from size and weight, never from ornament — the previous pass had paper
-       grain, registration marks and a display serif doing decoration rather
-       than work, which is what made it read as styled instead of designed.
-       Dark because the anatomy is lit, rounded and soft because the person
-       using it is a patient recovering from a stroke, not an operator. */
-    :root {
-      color-scheme: dark;
-
-      --bg:        #0a0b0d;
-      --surface:   #131519;
-      --surface-2: #1a1d23;
-      --line:      #23272f;
-
-      --text:      #f5f6f7;
-      --text-2:    #9aa1ac;
-      --text-3:    #626873;
-
-      --accent:    #5ee9a4;   /* progress, live, confirmed */
-      --accent-dim: rgba(94, 233, 164, 0.12);
-      --warn:      #ffb454;
-      --warn-dim:  rgba(255, 180, 84, 0.12);
-      --stop:      #ff6b5a;
-      --stop-dim:  rgba(255, 107, 90, 0.12);
-
-      --r-sm: 8px;
-      --r-md: 14px;
-      --r-lg: 20px;
-
-      --sans: "Manrope", -apple-system, "Segoe UI", system-ui, sans-serif;
-
-      /* The built-in CSS easings are too weak to read as intentional. These
-         are the stronger variants; ease-in is deliberately absent, because it
-         delays the initial movement — the exact moment the user is watching. */
-      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    }
-
-    * { box-sizing: border-box; }
-
-    html, body {
-      width: 100%;
-      min-width: 340px;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background: var(--bg);
-    }
-
-    body {
-      color: var(--text);
-      font-family: var(--sans);
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: -0.011em;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    button { font: inherit; color: inherit; }
-    a { color: inherit; }
 
     .shell {
       display: grid;
@@ -95,28 +35,73 @@
     .wordmark {
       margin: 0;
       font-size: 19px;
-      font-weight: 800;
-      letter-spacing: -0.03em;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    /* A small steady pulse rather than a logomark — the same "is anything
+       live" question the status strip answers, asked at a glance before you
+       even reach the chrome on the right. Pure CSS so the markup stays a
+       plain <h1>. */
+    .wordmark::before {
+      content: "";
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      margin-right: 9px;
+      margin-bottom: 1px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+      vertical-align: middle;
+      animation: brand-pulse 2400ms ease-in-out infinite;
+    }
+    @keyframes brand-pulse {
+      0%, 100% { opacity: 0.7; }
+      50%      { opacity: 1; box-shadow: 0 0 0 5px var(--accent-dim); }
     }
 
     .brand-note { display: none; }
 
-    .state-cluster { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .state-cluster { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
-    /* Status as a quiet chip. Prose, not protocol: someone wearing electrodes
-       needs to know whether current is flowing, not the name of a flag. */
+    /* The status strip and the audio controls are both "several related
+       controls" — grouping each into one bordered capsule (rather than N
+       same-weight pills floating side by side) is what separates a designed
+       instrument panel from a scatter of default-styled buttons. */
+    .audio-controls + .state-cluster {
+      padding: 3px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+    }
+
+    /* Status as a quiet segment. Prose, not protocol: someone wearing
+       electrodes needs to know whether current is flowing, not the name of
+       a flag. */
     .state-pill {
       display: inline-flex;
       align-items: center;
-      height: 30px;
-      padding: 0 12px;
+      height: 28px;
+      padding: 0 11px;
       gap: 7px;
       border-radius: 999px;
-      background: var(--surface);
       color: var(--text-2);
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 600;
+      letter-spacing: 0.002em;
       white-space: nowrap;
+    }
+    .audio-controls + .state-cluster .state-pill:not(:first-child) {
+      border-left: 1px solid var(--line);
+      border-radius: 0;
+      padding-left: 12px;
+    }
+    /* The floating camera-preview pill is not part of that capsule, so it
+       keeps its own solid chip treatment. */
+    .state-pill.camera-status {
+      background: rgba(10, 14, 19, 0.72);
+      border: 1px solid var(--line);
     }
 
     .state-dot {
@@ -128,22 +113,31 @@
     }
 
     .state-pill.is-live  { color: var(--text); }
-    .state-pill.is-live  .state-dot { background: var(--accent); }
+    .state-pill.is-live  .state-dot { background: var(--accent); box-shadow: 0 0 6px 0 var(--accent); }
     .state-pill.is-hold  { color: var(--warn); }
     .state-pill.is-hold  .state-dot { background: var(--warn); }
     .state-pill.is-armed { color: var(--stop); }
     .state-pill.is-armed .state-dot { background: var(--stop); }
 
-    .audio-controls { display: flex; align-items: center; gap: 6px; margin-right: 4px; }
-
-    .side-option {
-      height: 30px;
-      padding: 0 14px;
-      border: none;
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-right: 4px;
+      padding: 3px;
       border-radius: 999px;
       background: var(--surface);
+      border: 1px solid var(--line);
+    }
+
+    .side-option {
+      height: 26px;
+      padding: 0 13px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
       color: var(--text-2);
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition:
@@ -162,21 +156,24 @@
     .tempo {
       display: flex;
       align-items: center;
-      height: 30px;
-      padding: 0 12px 0 10px;
+      height: 26px;
+      padding: 0 10px 0 12px;
+      margin-left: 4px;
       gap: 8px;
-      border-radius: 999px;
-      background: var(--surface);
+      border-left: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
       opacity: 0.4;
       transition: opacity 200ms var(--ease-out);
     }
     .tempo.is-live { opacity: 1; }
-    .tempo input { width: 68px; accent-color: var(--accent); cursor: pointer; }
+    .tempo input { width: 64px; accent-color: var(--accent); cursor: pointer; }
     .tempo span {
-      min-width: 2.2em;
+      min-width: 2.4em;
       color: var(--text-2);
+      font-family: var(--mono);
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 500;
       font-variant-numeric: tabular-nums;
     }
 
@@ -195,11 +192,16 @@
       overflow: hidden;
       border-radius: var(--r-lg);
       background: var(--surface);
+      /* A hairline plus a soft cast shadow reads as a lifted instrument
+         panel; a flat fill the same value as everything around it is what
+         made every surface look like the same unstyled block. */
+      border: 1px solid var(--line);
+      box-shadow: 0 20px 48px -20px rgba(0, 0, 0, 0.55);
     }
 
     .viewport {
       background:
-        radial-gradient(120% 80% at 50% 0%, #181c22 0%, #0e1013 65%);
+        radial-gradient(120% 80% at 50% 0%, #171e24 0%, #0d1218 65%);
     }
 
     #three-mount { position: absolute; inset: 0; z-index: 1; }
@@ -227,7 +229,6 @@
       right: 12px;
       bottom: 12px;
       z-index: 5;
-      background: rgba(10, 11, 13, 0.72);
       backdrop-filter: blur(8px);
     }
 
@@ -243,7 +244,8 @@
       padding: 16px 20px;
       gap: 13px;
       border-radius: var(--r-md);
-      background: rgba(19, 21, 25, 0.94);
+      background: rgba(18, 24, 32, 0.94);
+      border: 1px solid var(--line);
       box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(12px);
       transform: translate(-50%, -50%) scale(1);
@@ -296,6 +298,8 @@
       padding: 18px 22px;
       border-radius: var(--r-lg);
       background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 16px 40px -22px rgba(0, 0, 0, 0.6);
     }
 
     /* Progress reads as a bar, not a row of dots to decode. */
@@ -324,10 +328,11 @@
     .flow-step {
       display: block;
       margin-bottom: 5px;
-      color: var(--text-3);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
     }
 
@@ -335,8 +340,8 @@
     .flow-instruction {
       margin: 0 0 12px;
       font-size: clamp(21px, 2.1vw, 28px);
-      font-weight: 700;
-      letter-spacing: -0.028em;
+      font-weight: 600;
+      letter-spacing: -0.022em;
       line-height: 1.2;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -352,13 +357,14 @@
       align-items: flex-start;
       padding: 9px 16px;
       gap: 1px;
-      border: none;
+      border: 1px solid var(--line);
       border-radius: var(--r-sm);
       background: var(--surface-2);
       color: var(--text-2);
       cursor: pointer;
       transition:
         background 160ms var(--ease-out),
+        border-color 160ms var(--ease-out),
         color 160ms var(--ease-out),
         transform 140ms var(--ease-out);
       /* Enters with the flow step rather than popping in. */
@@ -367,7 +373,7 @@
     .choice:active { transform: scale(0.97); }
     /* Gated: touch devices fire hover on tap, which would stick the lift on. */
     @media (hover: hover) and (pointer: fine) {
-      .choice:hover { background: #212630; color: var(--text); transform: translateY(-1px); }
+      .choice:hover { background: #202a33; border-color: #2c3844; color: var(--text); transform: translateY(-1px); }
       .choice:hover:active { transform: scale(0.97); }
     }
 
@@ -384,11 +390,11 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .choice.is-selected { background: var(--accent-dim); color: var(--accent); }
+    .choice.is-selected { background: var(--accent-dim); border-color: rgba(47, 190, 147, 0.4); color: var(--accent); }
 
-    .choice-name { font-size: 14px; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; }
-    .choice-sub  { color: var(--text-3); font-size: 11.5px; font-weight: 600; }
-    .choice.is-selected .choice-sub { color: rgba(94, 233, 164, 0.7); }
+    .choice-name { font-size: 14px; font-weight: 600; letter-spacing: -0.012em; white-space: nowrap; }
+    .choice-sub  { color: var(--text-3); font-size: 11.5px; font-weight: 500; }
+    .choice.is-selected .choice-sub { color: rgba(47, 190, 147, 0.75); }
 
     /* Grip has no finger landmarks to check against, so its reps are timed
        rather than observed. Marked, not quietly presented as equivalent. */
@@ -398,58 +404,18 @@
 
     /* During a set this is the number that matters, so it is the biggest thing
        in the bar. Tabular so it does not jitter as it counts. */
+    /* Set like a monitor's own rep counter, not like a headline. */
     .flow-count {
-      font-size: 34px;
-      font-weight: 800;
-      letter-spacing: -0.04em;
+      font-family: var(--mono);
+      font-size: 30px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
       line-height: 1;
       white-space: nowrap;
       font-variant-numeric: tabular-nums;
     }
     .flow-count[hidden] { display: none; }
 
-    .flow-primary {
-      height: 48px;
-      padding: 0 32px;
-      border: none;
-      border-radius: 999px;
-      background: var(--accent);
-      color: #06231a;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      cursor: pointer;
-      /* transform and opacity only: both skip layout and paint. */
-      transition:
-        transform 140ms var(--ease-out),
-        opacity 160ms var(--ease-out),
-        background 160ms var(--ease-out);
-    }
-    .flow-primary:active:not(:disabled) { transform: scale(0.97); }
-    @media (hover: hover) and (pointer: fine) {
-      .flow-primary:hover:not(:disabled) { transform: translateY(-1px); }
-      .flow-primary:hover:active:not(:disabled) { transform: scale(0.97); }
-    }
-    .flow-primary:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
-    .flow-primary:disabled { opacity: 0.22; cursor: default; }
-    .flow-primary.is-stop { background: var(--stop); color: #2b0b06; }
-
-    .flow-secondary {
-      height: 48px;
-      padding: 0 8px;
-      border: none;
-      background: none;
-      color: var(--text-3);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .flow-secondary[hidden] { display: none; }
-    .flow-secondary { transition: color 140ms var(--ease-out), transform 120ms var(--ease-out); }
-    .flow-secondary:active { transform: scale(0.96); }
-    @media (hover: hover) and (pointer: fine) {
-      .flow-secondary:hover { color: var(--text); }
-    }
 
     /* ---------------------------------------------------------- footer --- */
 
@@ -465,7 +431,15 @@
     .footerbar p { margin: 0; }
     .credit { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .credit a { text-decoration-color: var(--line); text-underline-offset: 3px; }
-    #endpoint { max-width: 30vw; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+    #endpoint {
+      max-width: 30vw;
+      overflow: hidden;
+      text-align: right;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
 
     /* --------------------------------------------------------- narrow --- */
 
@@ -486,15 +460,11 @@
     /* Reduced motion means fewer and gentler, not none: colour and opacity
        still carry meaning here (which pad is live, whether tracking is held),
        so only movement is removed. */
+    /* The universal animation/transition override and the flow-primary/
+       flow-secondary part live in shared/theme.css now — this block only
+       covers the twin.html-specific classes. */
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-property: opacity, background-color, color, background !important;
-        transition-duration: 140ms !important;
-      }
-      .choice:active, .side-option:active, .flow-primary:active, .flow-secondary:active,
-      .choice:hover, .flow-primary:hover { transform: none !important; }
+      .choice:active, .side-option:active, .choice:hover { transform: none !important; }
     }
   </style>
 </head>
