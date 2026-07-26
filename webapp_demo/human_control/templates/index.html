@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07100f">
+  <link rel="stylesheet" href="/static/css/global.css">
+  <link rel="icon" type="image/png" href="/static/images/icon.png">
+  <link rel="apple-touch-icon" href="/static/images/icon.png">
+  <title>Human Control — Axon</title>
+  <style>
+    /* THIS PAGE IS A LAUNCHER, NOT A CONTROL SURFACE.
+       An earlier version put jog buttons and a keyboard handler here. That was
+       wrong twice over: the arrow keys have to reach the terminal that
+       launch.py opens, and a page listening for them steals every press; and a
+       second control loop in the browser would fight the real one for the
+       board. So there are no arm/jog/stop controls here at all - the session
+       owns the arm, and this owns starting and stopping the session. */
+    :root {
+      color-scheme: dark;
+      --bg:      #07100f;
+      --panel:   #0d1a18;
+      --line:    #1d2f2c;
+      --text:    #e8f2f0;
+      --muted:   #7d938f;
+      --accent:  #35e0b0;
+      --warn:    #ffb020;
+      --danger:  #ff4d4d;
+      --radius:  14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 32px 24px 64px; }
+    h1 { font-size: 28px; margin: 24px 0 4px; letter-spacing: -0.02em; }
+    .lede { color: var(--muted); margin: 0 0 24px; max-width: 64ch; }
+
+    .card {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--muted); margin: 0 0 14px; font-weight: 600;
+    }
+
+    .state {
+      display: flex; align-items: center; gap: 12px;
+      border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px;
+      border: 1px solid var(--line); background: var(--panel);
+      transition: background .18s ease, border-color .18s ease;
+    }
+    .state__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); flex: none; }
+    .state__text { font-weight: 600; }
+    .state__sub { color: var(--muted); font-size: 13px; margin-left: auto; }
+    .state.is-running { border-color: var(--accent); background: #0b241d; }
+    .state.is-running .state__dot { background: var(--accent); }
+
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button, .btn {
+      font: inherit; color: var(--text); background: #12211f;
+      border: 1px solid var(--line); border-radius: 10px;
+      padding: 10px 14px; cursor: pointer; text-decoration: none;
+      display: inline-block;
+      transition: border-color .15s ease, transform .06s ease;
+    }
+    button:hover:not(:disabled), .btn:hover { border-color: var(--accent); }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+    .hostrow { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; }
+    .hostrow span { color: var(--muted); white-space: nowrap; }
+    .hostrow input {
+      flex: 1; font: inherit; color: var(--text); background: #12211f;
+      border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .hostrow input:focus { outline: none; border-color: var(--accent); }
+
+    .log {
+      background: #060d0c; border: 1px solid var(--line); border-radius: 10px;
+      padding: 12px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #b9ccc8; height: 320px; overflow: auto; white-space: pre-wrap;
+      word-break: break-word; margin: 0;
+    }
+    .log:empty::before { content: "no session running"; color: var(--muted); }
+
+    ol.steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+    ol.steps li { margin-bottom: 7px; }
+    ol.steps b { color: var(--text); font-weight: 600; }
+    kbd {
+      font: 12px ui-monospace, monospace; background: #12211f; color: var(--text);
+      border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px;
+    }
+    .safety {
+      border-left: 2px solid var(--danger); padding-left: 14px;
+      color: var(--muted); font-size: 13px; max-width: 70ch;
+    }
+    .muted { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  {% from "partials/site_header.html" import site_header %}
+  {{ site_header("human-control") }}
+
+  <main class="wrap">
+    <h1>Human Control</h1>
+    <p class="lede">
+      Starts the closed-loop teleoperation session: camera, 3D twin and the
+      keyboard controller. It runs in its own console window, because that is
+      where the arrow keys have to land.
+    </p>
+
+    <div class="state" id="state">
+      <span class="state__dot"></span>
+      <span class="state__text" id="state-text">No session running</span>
+      <span class="state__sub" id="state-sub">the camera is free</span>
+    </div>
+
+    <div class="card">
+      <h2>Start a session</h2>
+      <label class="hostrow">
+        <span>Board IP</span>
+        <input id="host" type="text" inputmode="decimal" spellcheck="false"
+               placeholder="e.g. 192.168.137.131 — blank to auto-discover">
+      </label>
+      <div class="row">
+        <button class="primary" id="btn-launch">Launch session</button>
+        <button id="btn-stop" disabled>Stop session</button>
+        <a class="btn" id="btn-twin" href="#" target="_blank" rel="noopener"
+           style="display:none">Open the 3D twin ↗</a>
+      </div>
+      <p class="muted" style="margin-bottom:0">
+        Runs <code>tools/launch.py</code>. Starting it releases this site's
+        camera — only one process can hold the webcam.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Once it is up</h2>
+      <ol class="steps">
+        <li>The session opens <b>its own console window</b>. Click it — that is
+          where the keyboard goes.</li>
+        <li>Its <b>3D twin</b> opens in a browser tab, showing what the system
+          believes the arm is doing.</li>
+        <li>Press <kbd>A</kbd> to arm. Nothing stimulates until you do.</li>
+        <li><kbd>↑</kbd><kbd>↓</kbd> raise and lower · <kbd>←</kbd><kbd>→</kbd>
+          swing forward and back · <kbd>W</kbd><kbd>S</kbd> bend and straighten
+          the elbow · <kbd>G</kbd> grip · <kbd>X</kbd> emergency stop.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Session output</h2>
+      <pre class="log" id="log"></pre>
+    </div>
+
+    <p class="safety">
+      The console window is the control surface, not this page — this only
+      starts and stops it. The subject's in-line kill switch and the board's
+      watchdog remain the real protections, and <kbd>X</kbd> in the session
+      window is the operator stop.
+    </p>
+  </main>
+
+  <script>
+    // NO KEYBOARD HANDLER ON THIS PAGE, DELIBERATELY. The session's console
+    // needs every keypress; a page that listens for arrow keys while the
+    // operator is driving would swallow them if the browser held focus.
+    const $ = (id) => document.getElementById(id);
+    let ws = null;
+
+    // launch.py serves its twin here. Kept in one place so it stays in step
+    // with the --frontend-port the launcher is started with.
+    const TWIN_URL = "http://127.0.0.1:8081/twin.html";
+
+    function connect() {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const base = location.pathname.replace(/\/$/, "");
+      ws = new WebSocket(`${proto}://${location.host}${base}/ws`);
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.session) render(msg.session);
+      };
+      ws.onclose = () => {
+        $("state-sub").textContent = "page disconnected — the session keeps running";
+      };
+    }
+
+    const send = (obj) => ws && ws.readyState === 1 && ws.send(JSON.stringify(obj));
+
+    function render(sess) {
+      const running = !!sess.running;
+      $("state").className = "state" + (running ? " is-running" : "");
+      $("state-text").textContent = running ? "Session running" : "No session running";
+      $("state-sub").textContent = running
+        ? "this site has released the camera"
+        : "the camera is free";
+      $("btn-launch").disabled = running;
+      $("btn-stop").disabled = !running;
+      $("btn-twin").style.display = running ? "inline-block" : "none";
+      $("btn-twin").href = TWIN_URL;
+
+      const log = $("log");
+      const text = (sess.log || []).join("\n");
+      if (text !== log.textContent) {
+        // Only auto-scroll when already at the bottom, so reading back through
+        // a startup error is not yanked away by the next line arriving.
+        const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+        log.textContent = text;
+        if (atBottom) log.scrollTop = log.scrollHeight;
+      }
+    }
+
+    $("btn-launch").onclick = () => {
+      const host = $("host").value.trim();
+      localStorage.setItem("axon.boardHost", host);
+      send({ cmd: "launch", host: host || null });
+    };
+    $("btn-stop").onclick = () => send({ cmd: "launch_stop" });
+
+    $("host").value = localStorage.getItem("axon.boardHost") || "";
+    connect();
+  </script>
+</body>
+</html>

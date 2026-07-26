@@ -1,0 +1,836 @@
+:root {
+    color-scheme: dark;
+    --ink: #f4f1e8;
+    --muted: #c8cec6;
+    --dim: #93a29b;
+    --page: #07100f;
+    --panel: transparent;
+    --panel-solid: #0b1917;
+    --field: #0d211d;
+    --line: rgba(162, 193, 181, 0.2);
+    --signal: #87f7c7;
+    --signal-strong: #b3ffdf;
+    --signal-soft: rgba(135, 247, 199, 0.13);
+    --signal-warm: #ffd65c;
+    --alert: #ff8066;
+    --alert-soft: rgba(255, 107, 74, 0.13);
+    --shadow: rgba(0, 0, 0, 0.52);
+    --signal-shift-x: 0px;
+    --signal-shift-y: 0px;
+    --signal-light-x: 50%;
+    --signal-light-y: 50%;
+    --site-header-height: clamp(3.9rem, 7vh, 4.75rem);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    min-width: 320px;
+    min-height: 100%;
+    background: var(--page);
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    padding: clamp(0.75rem, 2vw, 1.75rem);
+    overflow-x: hidden;
+    background:
+        radial-gradient(circle at 76% 14%, rgba(64, 146, 118, 0.1), transparent 30%),
+        radial-gradient(circle at 12% 86%, rgba(35, 92, 74, 0.08), transparent 32%),
+        var(--page);
+    color: var(--ink);
+    font-family: Bahnschrift, "Avenir Next Condensed", "Segoe UI", sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.015em;
+}
+
+.site-with-header {
+    padding-top: calc(var(--site-header-height) + clamp(0.75rem, 2vw, 1.75rem));
+}
+
+body::before {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    content: "";
+    background:
+        radial-gradient(circle at 16% 24%, rgba(135, 247, 199, 0.18) 0 1px, transparent 2px),
+        radial-gradient(circle at 84% 68%, rgba(127, 226, 255, 0.14) 0 1px, transparent 2px),
+        linear-gradient(122deg, transparent 0 48%, rgba(135, 247, 199, 0.02) 48% 48.2%, transparent 48.2%),
+        linear-gradient(90deg, rgba(135, 247, 199, 0.018) 1px, transparent 1px),
+        linear-gradient(rgba(127, 226, 255, 0.014) 1px, transparent 1px),
+        repeating-linear-gradient(0deg, rgba(127, 226, 255, 0.009) 0 1px, transparent 1px 4px);
+    background-size: auto, auto, auto, 72px 72px, 72px 72px, auto;
+    mask-image: radial-gradient(circle at center, black, transparent 88%);
+}
+
+body::after {
+    position: fixed;
+    inset: -35%;
+    z-index: 0;
+    pointer-events: none;
+    content: "";
+    background: linear-gradient(
+        108deg,
+        transparent 42%,
+        rgba(135, 247, 199, 0.02) 48%,
+        rgba(127, 226, 255, 0.045) 50%,
+        rgba(135, 247, 199, 0.02) 52%,
+        transparent 58%
+    );
+    transform: translateX(-38%);
+    animation: scan-glow 24s ease-in-out infinite;
+}
+
+.electric-rail {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    height: clamp(4rem, 7vh, 5.5rem);
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.82;
+}
+
+.electric-rail--top {
+    top: 0;
+    bottom: auto;
+    z-index: 4;
+    height: clamp(1.8rem, 3.5vh, 2.4rem);
+    opacity: 0.9;
+    transform: scaleY(-1);
+}
+
+.site-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 5;
+    width: 100%;
+    height: var(--site-header-height);
+    margin: 0;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(135, 247, 199, 0.18);
+    border-radius: 0;
+    background: #07100f;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+}
+
+.site-header .electric-rail--top {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 1;
+    width: 100%;
+    margin: 0;
+}
+
+.site-header__inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(1rem, 3vw, 3rem);
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+    padding: 0 clamp(0.9rem, 3vw, 2.5rem);
+}
+
+.site-header__brand {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.65rem;
+    padding: 0;
+    background: transparent;
+    color: var(--ink);
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: clamp(1rem, 1.8vw, 1.3rem);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-decoration: none;
+    text-shadow: 0 0 12px rgba(135, 247, 199, 0.2);
+    text-transform: uppercase;
+}
+
+.site-header__brand-mark {
+    width: 0.58rem;
+    height: 0.58rem;
+    border: 1px solid var(--signal);
+    background: rgba(135, 247, 199, 0.16);
+    box-shadow:
+        0 0 8px rgba(135, 247, 199, 0.7),
+        inset 0 0 4px rgba(135, 247, 199, 0.5);
+    transform: rotate(45deg);
+}
+
+/* The wordmark's "x" is a neuron. It is a black-on-white raster, and this is a
+   dark interface, so it is inverted and screened: invert makes the cell light
+   and the field black, and screen blending drops that black out entirely. That
+   is more robust than shipping a second asset, and it survives the artwork
+   being re-exported.
+
+   Sized to the x-height rather than the cap height - it is standing in for a
+   lowercase letter, and matching cap height would make it loom over the A. */
+.site-header__wordmark {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.04em;
+}
+
+.site-header__glyph {
+    width: auto;
+    height: 0.62em;                 /* ~x-height for this face */
+    align-self: center;
+    margin-block-end: -0.02em;      /* optical seating on the baseline */
+    filter: invert(1);
+    mix-blend-mode: screen;
+    /* Slightly tightened so the dendrites do not read as extra letter-spacing. */
+    margin-inline: -0.03em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .site-header__brand:hover .site-header__glyph {
+        transform: scale(1.06);
+        transition: transform 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+    }
+}
+
+.product-tabs {
+    display: flex;
+    align-self: stretch;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: 0;
+    min-width: 0;
+}
+
+.product-tab {
+    position: relative;
+    display: inline-grid;
+    width: auto;
+    min-width: clamp(3rem, 8vw, 7rem);
+    min-height: 100%;
+    padding: 0.55rem clamp(0.65rem, 1.5vw, 1rem);
+    border: 0;
+    border-left: 1px solid rgba(135, 247, 199, 0.18);
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted);
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: clamp(0.57rem, 0.85vw, 0.68rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    place-items: center;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.product-tab:last-child {
+    border-right: 1px solid rgba(135, 247, 199, 0.18);
+}
+
+.product-tab:hover {
+    background: rgba(135, 247, 199, 0.055);
+    color: var(--ink);
+}
+
+.product-tab.is-active {
+    background: linear-gradient(180deg, transparent, rgba(24, 59, 49, 0.62));
+    color: var(--signal-strong);
+    box-shadow:
+        inset 0 -2px var(--signal);
+}
+
+button.product-tab--placeholder {
+    width: clamp(2.8rem, 6vw, 5rem);
+    min-width: clamp(2.8rem, 6vw, 5rem);
+    padding: 0;
+    cursor: default;
+    opacity: 0.55;
+    box-shadow: none;
+}
+
+button.product-tab--placeholder::before {
+    width: 45%;
+    height: 1px;
+    content: "";
+    background: rgba(135, 247, 199, 0.18);
+}
+
+button.product-tab--placeholder:hover {
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+}
+
+.electric-rail svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.electric-rail__trace,
+.electric-rail__pulse {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+}
+
+.electric-rail__trace {
+    stroke: rgba(135, 247, 199, 0.13);
+    stroke-width: 1.35;
+}
+
+.electric-rail__pulse {
+    stroke: var(--signal);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-dasharray: 3 44 18 120;
+    filter: drop-shadow(0 0 3px rgba(135, 247, 199, 0.52));
+    animation: electricity-run 7.6s linear infinite;
+}
+
+.electric-rail__pulse--echo {
+    stroke: var(--signal-strong);
+    stroke-width: 1.05;
+    stroke-dasharray: 1 92 8 160;
+    opacity: 0.7;
+    animation-duration: 7.2s;
+    animation-direction: reverse;
+}
+
+.electric-rail--top .electric-rail__pulse {
+    animation-direction: reverse;
+}
+
+.electric-rail--top .electric-rail__pulse--echo {
+    animation-direction: normal;
+}
+
+.signal-field {
+    position: fixed;
+    inset: -1rem;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.76;
+    transform: translate3d(var(--signal-shift-x), var(--signal-shift-y), 0) scale(1.015);
+    transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.signal-field::before {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background: radial-gradient(
+        circle 15rem at var(--signal-light-x) var(--signal-light-y),
+        rgba(255, 214, 92, 0.2),
+        rgba(255, 190, 64, 0.07) 38%,
+        transparent 72%
+    );
+}
+
+.signal-field::after {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    content: "";
+    background: radial-gradient(
+        ellipse 38rem 28rem at center,
+        rgba(255, 214, 92, 0.11),
+        rgba(255, 190, 64, 0.045) 38%,
+        rgba(135, 247, 199, 0.012) 62%,
+        transparent 78%
+    );
+    mix-blend-mode: screen;
+}
+
+.signal-field svg {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.signal-field__drift {
+    animation: signal-field-drift 32s ease-in-out infinite alternate;
+    transform-origin: center;
+}
+
+.signal-field__fibres {
+    fill: none;
+    stroke: var(--signal);
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.signal-field__fibres--rear {
+    stroke-width: 1;
+    opacity: 0.24;
+}
+
+.signal-field__fibres--front {
+    stroke-width: 1.35;
+    opacity: 0.4;
+}
+
+.signal-field__fibres--arcs {
+    stroke: var(--signal-warm);
+    stroke-width: 0.85;
+    opacity: 0.13;
+}
+
+.signal-field__fibres--cross {
+    stroke: rgba(127, 226, 255, 0.6);
+    stroke-width: 0.9;
+    opacity: 0.22;
+}
+
+.signal-field__wave-trace,
+.signal-field__wave-pulse {
+    fill: none;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.signal-field__wave-trace {
+    stroke: rgba(127, 226, 255, 0.34);
+    stroke-width: 1.1;
+}
+
+.signal-field__wave-pulse {
+    stroke: var(--signal);
+    stroke-width: 1.25;
+    stroke-dasharray: 2 168 18 260;
+    opacity: 0.72;
+    animation: signal-pulse 14s linear infinite;
+}
+
+.signal-field__nodes {
+    fill: rgba(135, 247, 199, 0.16);
+    stroke: rgba(127, 226, 255, 0.48);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.hand-ticker {
+    position: fixed;
+    top: -2px;
+    left: 130px;
+    bottom: -2px;
+    z-index: 0;
+    width: 322px;
+    pointer-events: none;
+    background-image: url("../images/hands1.png");
+    background-repeat: repeat-y;
+    background-position: center 0;
+    background-size: 322px 699px;
+    opacity: 0.33;
+    filter: blur(2px);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 24%, black 100%);
+    mask-image: linear-gradient(to right, transparent 0, black 24%, black 100%);
+    animation: hand-ticker-scroll 24s linear infinite;
+    will-change: background-position;
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+}
+
+.card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 880px);
+    margin: 0 auto;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+    border: 1px solid var(--line);
+    background: var(--panel);
+    box-shadow: 0 24px 72px var(--shadow), inset 0 1px rgba(135, 247, 199, 0.025);
+    backdrop-filter: none;
+}
+
+.card::before {
+    position: absolute;
+    top: -1px;
+    left: clamp(1.25rem, 4vw, 2.5rem);
+    width: clamp(5rem, 15vw, 10rem);
+    height: 1px;
+    content: "";
+    background: var(--signal);
+    box-shadow: 0 0 14px rgba(135, 247, 199, 0.7);
+}
+
+.app-intro {
+    margin-bottom: 1.5rem;
+}
+
+.text-enter {
+    animation: text-enter 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.enter-1 {
+    animation-delay: 40ms;
+}
+
+.enter-2 {
+    animation-delay: 100ms;
+}
+
+.enter-3 {
+    animation-delay: 160ms;
+}
+
+.enter-4 {
+    animation-delay: 220ms;
+}
+
+.eyebrow {
+    margin: 0 0 0.65rem;
+    color: var(--signal);
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+h1 {
+    margin: 0;
+    color: var(--ink);
+    font-size: clamp(2rem, 4.5vw, 3.8rem);
+    font-stretch: condensed;
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 0.95;
+    text-transform: uppercase;
+}
+
+.app-intro > p:last-child {
+    max-width: 42rem;
+    margin: 1rem 0 0;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--muted);
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+textarea,
+.text-box {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--field);
+    color: var(--ink);
+    font-size: 0.86rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+textarea::placeholder,
+.text-box::placeholder {
+    color: var(--dim);
+}
+
+button:focus-visible,
+.site-button:focus-visible {
+    outline: 1px solid var(--signal);
+    outline-offset: 3px;
+}
+
+button,
+.site-button {
+    width: 100%;
+    min-height: 2.8rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(135, 247, 199, 0.62);
+    border-radius: 0;
+    background: linear-gradient(135deg, #183b31, #102a24);
+    color: var(--signal-strong);
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: inset 0 0 20px rgba(135, 247, 199, 0.05);
+    transition: border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+button:hover,
+.site-button:hover {
+    border-color: var(--signal);
+    color: var(--ink);
+    box-shadow: 0 0 22px rgba(135, 247, 199, 0.17), inset 0 0 24px rgba(135, 247, 199, 0.08);
+    transform: translateY(-1px);
+}
+
+button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
+.site-button {
+    text-align: center;
+    text-decoration: none;
+}
+
+.landing-page {
+    display: grid;
+    place-items: center;
+}
+
+.landing-page .card {
+    width: min(100%, 760px);
+}
+
+.landing-page .site-button {
+    display: inline-flex;
+    width: auto;
+    margin-top: 1rem;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes text-enter {
+    from {
+        opacity: 0;
+        transform: translateX(-16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes controls-enter {
+    from {
+        opacity: 0;
+        transform: translateX(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes result-frame-extend-up {
+    from {
+        clip-path: inset(100% 0 0 0);
+        opacity: 0.45;
+    }
+
+    to {
+        clip-path: inset(0);
+        opacity: 1;
+    }
+}
+
+@keyframes result-image-wipe-down {
+    from {
+        clip-path: inset(0 0 100% 0);
+        opacity: 0;
+    }
+
+    to {
+        clip-path: inset(0);
+        opacity: 1;
+    }
+}
+
+@keyframes lightbox-enter {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scan-glow {
+    0%,
+    18% {
+        opacity: 0.2;
+        transform: translateX(-38%);
+    }
+
+    50% {
+        opacity: 0.45;
+    }
+
+    82%,
+    100% {
+        opacity: 0.2;
+        transform: translateX(38%);
+    }
+}
+
+@keyframes signal-field-drift {
+    from {
+        transform: translate3d(-0.35%, -0.2%, 0) scale(1);
+    }
+
+    to {
+        transform: translate3d(0.35%, 0.2%, 0) scale(1.008);
+    }
+}
+
+@keyframes signal-pulse {
+    from {
+        stroke-dashoffset: 0;
+    }
+
+    to {
+        stroke-dashoffset: -448;
+    }
+}
+
+@keyframes hand-ticker-scroll {
+    from {
+        background-position: center 0;
+    }
+
+    to {
+        background-position: center -699px;
+    }
+}
+
+@keyframes electrode-ready {
+    from {
+        filter: brightness(0.9);
+    }
+
+    to {
+        filter: brightness(1.2);
+    }
+}
+
+@keyframes electricity-run {
+    0% {
+        stroke-dashoffset: 0;
+        opacity: 0.35;
+    }
+
+    12%,
+    72% {
+        opacity: 1;
+    }
+
+    100% {
+        stroke-dashoffset: -420;
+        opacity: 0.45;
+    }
+}
+
+@keyframes loading-ellipsis {
+    0% {
+        content: ".";
+    }
+
+    33% {
+        content: "..";
+    }
+
+    66%,
+    100% {
+        content: "...";
+    }
+}
+
+@keyframes loading-electricity {
+    from {
+        stroke-dashoffset: 0;
+        opacity: 0.45;
+    }
+
+    35% {
+        opacity: 1;
+    }
+
+    to {
+        stroke-dashoffset: -102;
+        opacity: 0.55;
+    }
+}
+
+@media (max-width: 640px) {
+    .site-header__inner {
+        gap: 0.55rem;
+        padding: 0 0.65rem;
+    }
+
+    .site-header__brand {
+        gap: 0.45rem;
+        padding: 0;
+        font-size: 0.88rem;
+    }
+
+    .site-header__brand-mark {
+        width: 0.48rem;
+        height: 0.48rem;
+    }
+
+    .product-tabs {
+        gap: 0;
+    }
+
+    .product-tab {
+        min-width: 0;
+        min-height: 100%;
+        padding: 0.45rem 0.55rem;
+        font-size: 0.51rem;
+    }
+
+    button.product-tab--placeholder {
+        width: 1.9rem;
+        min-width: 1.9rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+
+    .signal-field {
+        transform: none;
+    }
+
+    .hand-ticker {
+        animation: none;
+    }
+}

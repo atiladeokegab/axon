@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+{% from "partials/electric_rail.html" import electric_rail %}
+{% from "partials/site_header.html" import site_header %}
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/static/images/icon.png">
+  <link rel="apple-touch-icon" href="/static/images/icon.png">
+    <title>EMS Muscle Mapper</title>
+    <link rel="stylesheet" href="/static/css/global.css">
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+
+<body class="mapper-page site-with-header">
+    {{ site_header("muscle-mapper") }}
+
+    <div class="signal-field" id="signalField" aria-hidden="true">
+        <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" focusable="false">
+            <g class="signal-field__drift">
+                <g class="signal-field__fibres signal-field__fibres--rear">
+                    <path d="M-90 188 C176 82 382 112 600 238 S1038 390 1530 132" />
+                    <path d="M-120 246 C164 140 390 158 604 276 S1054 414 1516 194" />
+                    <path d="M-108 310 C156 214 374 220 590 326 S1026 468 1524 260" />
+                    <path d="M-138 112 C132 302 352 26 624 188 S1114 356 1544 76" />
+                    <path d="M-126 420 C154 324 386 350 612 438 S1066 560 1532 354" />
+                    <path d="M-112 566 C168 450 398 476 626 574 S1080 698 1522 488" />
+                    <path d="M-60 690 C204 566 426 584 636 690 S1070 810 1510 604" />
+                    <path d="M-82 766 C190 646 408 660 624 758 S1050 870 1520 684" />
+                    <path d="M-100 850 C188 744 426 758 648 842 S1090 930 1536 786" />
+                </g>
+
+                <g class="signal-field__fibres signal-field__fibres--front">
+                    <path d="M-72 216 C182 112 388 140 606 258 S1044 398 1512 164" />
+                    <path d="M-84 282 C174 184 388 202 600 304 S1020 446 1518 230" />
+                    <path d="M-56 354 C202 250 410 268 618 366 S1038 510 1500 304" />
+                    <path d="M-68 506 C206 392 426 418 638 514 S1068 632 1510 430" />
+                    <path d="M-42 716 C226 598 440 616 648 716 S1072 824 1490 640" />
+                    <path d="M-64 822 C214 710 438 720 652 812 S1086 908 1504 746" />
+                </g>
+
+                <g class="signal-field__fibres signal-field__fibres--arcs">
+                    <path d="M168 560 C278 320 526 242 720 374 C914 242 1162 320 1272 560" />
+                    <path d="M228 612 C346 410 542 350 720 452 C898 350 1094 410 1212 612" />
+                    <path d="M302 658 C416 500 566 462 720 532 C874 462 1024 500 1138 658" />
+                    <path d="M380 698 C486 584 602 564 720 606 C838 564 954 584 1060 698" />
+                </g>
+
+                <g class="signal-field__fibres signal-field__fibres--cross">
+                    <path d="M96 -70 C178 164 122 350 272 532 S472 754 408 970" />
+                    <path d="M238 -82 C326 150 264 350 398 522 S566 760 520 970" />
+                    <path d="M1264 -82 C1178 152 1230 348 1088 524 S906 752 974 968" />
+                    <path d="M1122 -76 C1034 156 1096 354 962 530 S790 762 836 972" />
+                </g>
+
+                <g class="signal-field__wave">
+                    <path class="signal-field__wave-trace"
+                        d="M-20 472 L176 472 L206 460 L226 489 L250 435 L276 472 L470 472 L498 463 L518 486 L542 442 L568 472 L766 472 L792 459 L812 491 L840 431 L866 472 L1066 472 L1092 462 L1112 486 L1138 440 L1164 472 L1460 472" />
+                    <path class="signal-field__wave-pulse"
+                        d="M-20 472 L176 472 L206 460 L226 489 L250 435 L276 472 L470 472 L498 463 L518 486 L542 442 L568 472 L766 472 L792 459 L812 491 L840 431 L866 472 L1066 472 L1092 462 L1112 486 L1138 440 L1164 472 L1460 472" />
+                </g>
+
+                <g class="signal-field__nodes">
+                    <circle cx="250" cy="435" r="7" />
+                    <circle cx="542" cy="442" r="5" />
+                    <circle cx="840" cy="431" r="7" />
+                    <circle cx="1138" cy="440" r="5" />
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <div class="hand-ticker" aria-hidden="true"></div>
+
+    <main class="card">
+        <header class="app-intro">
+            <p class="eyebrow text-enter enter-1">Biomechanical analysis // EMS placement</p>
+            <h1 class="text-enter enter-2">EMS Muscle Mapper</h1>
+            <p class="text-enter enter-3">Upload a relaxed photo and a tensed photo from the same angle to calculate optimal EMS pad placement.</p>
+        </header>
+
+        <section class="capture-guidance text-enter enter-4" aria-labelledby="captureGuidanceTitle">
+            <h2 id="captureGuidanceTitle">Here's what to do:</h2>
+            <ul>
+                <li>Photograph one person only, with no people visible in the background.</li>
+                <li>Use the same arm, camera position, distance and side-on or slightly oblique angle in both photos.</li>
+                <li>Keep the shoulder, elbow and wrist clearly visible, without twisting the upper arm toward or away from the camera.</li>
+                <li>Use a clear background and similar lighting for both photos.</li>
+            </ul>
+        </section>
+
+        <section class="upload-zone" aria-label="Image inputs">
+            <form id="uploadForm">
+                <div class="upload-grid">
+                    <div class="upload-group">
+                        <span class="upload-group__traces" aria-hidden="true"></span>
+                        <div class="upload-pose upload-pose--relaxed" aria-hidden="true">
+                            <svg viewBox="0 0 120 120" focusable="false">
+                                <circle class="upload-pose__orbit" cx="60" cy="60" r="48" />
+                                <path class="upload-pose__axis" d="M60 6V17 M60 103V114 M6 60H17 M103 60H114" />
+                                <path class="upload-pose__torso" d="M30 18C25 38 25 78 31 103" />
+                                <circle class="upload-pose__joint" cx="40" cy="31" r="6" />
+                                <path class="upload-pose__arm"
+                                    d="M42 35C45 47 48 62 48 76C48 89 53 100 59 107" />
+                                <circle class="upload-pose__joint upload-pose__joint--small" cx="48" cy="76" r="4" />
+                                <path class="upload-pose__hand" d="M59 107L65 110M59 107L62 114M59 107L56 114" />
+                            </svg>
+                        </div>
+                        <label for="lax">1. Lax Arm (Relaxed)</label>
+                        <input type="file" id="lax" accept="image/*" required>
+                    </div>
+                    <div class="upload-group">
+                        <span class="upload-group__traces" aria-hidden="true"></span>
+                        <div class="upload-pose upload-pose--flexed" aria-hidden="true">
+                            <svg viewBox="0 0 120 120" focusable="false">
+                                <circle class="upload-pose__orbit" cx="60" cy="60" r="48" />
+                                <path class="upload-pose__axis" d="M60 6V17 M60 103V114 M6 60H17 M103 60H114" />
+                                <path class="upload-pose__torso" d="M29 18C24 38 24 78 30 103" />
+                                <circle class="upload-pose__joint" cx="39" cy="31" r="6" />
+                                <path class="upload-pose__muscle"
+                                    d="M42 40C54 37 62 45 60 57C58 65 53 70 55 74C47 70 43 60 42 40Z" />
+                                <path class="upload-pose__arm"
+                                    d="M41 35C44 49 48 65 55 74C65 66 73 51 83 41" />
+                                <circle class="upload-pose__joint upload-pose__joint--small" cx="55" cy="74" r="4" />
+                                <path class="upload-pose__hand" d="M83 41L88 35L94 39L91 46L84 47Z" />
+                            </svg>
+                        </div>
+                        <label for="flexed">2. Flexed Arm (Tensed)</label>
+                        <input type="file" id="flexed" accept="image/*" required>
+                    </div>
+                </div>
+                <button class="analyze-button" id="analyzeButton" type="submit" aria-busy="false">
+                    <span class="analyze-button__label">
+                        Analyze Muscle &amp; Map Pads
+                    </span>
+                </button>
+            </form>
+
+            <button class="change-images-button" id="changeImagesButton" type="button" hidden>
+                Change images
+            </button>
+
+            <div class="status-stack">
+                <div class="loading" id="loadingState"
+                    aria-label="Analyzing biomechanics. This takes a few seconds.">
+                    <span class="loading-copy">
+                        Analyzing biomechanics
+                        <span class="loading-dots" aria-hidden="true"></span>
+                        <small>This takes a few seconds</small>
+                    </span>
+                    <span class="loading-bolt" aria-hidden="true">
+                        <svg viewBox="0 0 210 64" preserveAspectRatio="none" focusable="false">
+                            <path class="loading-bolt__trace"
+                                d="M2 39H28L38 27L48 50L61 14L74 39H105L114 29L124 48L138 17L151 39H176L184 31L194 44L208 27" />
+                            <path class="loading-bolt__pulse"
+                                d="M2 39H28L38 27L48 50L61 14L74 39H105L114 29L124 48L138 17L151 39H176L184 31L194 44L208 27" />
+                            <path class="loading-bolt__pulse loading-bolt__pulse--echo"
+                                d="M2 39H28L38 27L48 50L61 14L74 39H105L114 29L124 48L138 17L151 39H176L184 31L194 44L208 27" />
+                        </svg>
+                    </span>
+                </div>
+                <div class="error" id="errorState" role="alert"></div>
+            </div>
+        </section>
+
+        <h2 class="result-heading" id="resultHeading" hidden>EMS Pad Mapping</h2>
+
+        <div id="resultContainer">
+            <figure class="result-figure">
+                <button class="result-image-button" id="resultImageButton" type="button"
+                    aria-label="View analysed image full size" aria-haspopup="dialog"
+                    title="View full size">
+                    <img id="resultImage" src="" alt="EMS Output">
+                </button>
+                <figcaption class="result-caption" id="altText"></figcaption>
+            </figure>
+        </div>
+
+        <div class="result-details" id="resultDetails" hidden>
+            <section class="meaning-panel" aria-labelledby="meaningTitle">
+                <h2 id="meaningTitle">What does this mean?</h2>
+                <p>Place the EMS pads at the marked proximal and distal points for each highlighted muscle group.
+                    The pads deliver electrical impulses across the muscle, causing it to contract and helping
+                    replicate the detected movement.</p>
+            </section>
+
+            <section class="feedback-panel" aria-labelledby="accuracyQuestion">
+                <p class="feedback-question" id="accuracyQuestion">Is this accurate?</p>
+                <div class="feedback-actions" aria-label="Mapping accuracy">
+                    <button class="feedback-icon" id="thumbUpButton" type="button"
+                        aria-label="Yes, this mapping is accurate" aria-pressed="false">
+                        <span aria-hidden="true">&#128077;</span>
+                    </button>
+                    <button class="feedback-icon" id="thumbDownButton" type="button"
+                        aria-label="No, this mapping needs correcting" aria-pressed="false">
+                        <span aria-hidden="true">&#128078;</span>
+                    </button>
+                </div>
+
+                <div class="correction-panel" id="correctionPanel" hidden>
+                    <label for="correctionText">What is wrong?</label>
+                    <textarea id="correctionText" rows="3" maxlength="1000"
+                        placeholder="For example: the biceps outline is too low, and the distal pad should move toward the elbow."></textarea>
+                    <button class="refine-button" id="submitCorrection" type="button">
+                        Refine mapping
+                    </button>
+                </div>
+                <p class="feedback-status" id="feedbackStatus" role="status" aria-live="polite"></p>
+            </section>
+        </div>
+    </main>
+
+    <div class="image-lightbox" id="imageLightbox" role="dialog" aria-modal="true"
+        aria-labelledby="imageLightboxTitle" hidden>
+        <div class="image-lightbox__bar">
+            <p id="imageLightboxTitle">Analysed EMS mapping</p>
+            <div class="image-lightbox__actions">
+                <a class="image-lightbox__save" id="saveResultImage" href="#"
+                    download="ems-muscle-mapping.jpg">Save image</a>
+                <button class="image-lightbox__close" id="closeImageLightbox" type="button"
+                    aria-label="Close full-size image">&times;</button>
+            </div>
+        </div>
+        <div class="image-lightbox__stage">
+            <img id="fullSizeResultImage" src="" alt="">
+        </div>
+    </div>
+
+    {{ electric_rail() }}
+
+    <script src="/static/js/background.js" defer></script>
+    <script src="static/js/app.js" defer></script>
+</body>
+
+</html>

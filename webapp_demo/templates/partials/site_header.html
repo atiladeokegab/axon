@@ -1,0 +1,34 @@
+{% from "partials/electric_rail.html" import electric_rail %}
+
+{% macro site_header(active_product="") -%}
+<header class="site-header">
+    {{ electric_rail("top") }}
+
+    <div class="site-header__inner">
+        <a class="site-header__brand" href="/" aria-label="Axon home">
+            <span class="site-header__brand-mark" aria-hidden="true"></span>
+            <span class="site-header__wordmark" aria-hidden="true">A<img
+                class="site-header__glyph" src="/static/images/icon.png" alt=""
+                width="370" height="367" decoding="async">on</span>
+        </a>
+
+        <nav class="product-tabs" aria-label="Axon products">
+            <a class="product-tab{% if active_product == 'muscle-mapper' %} is-active{% endif %}"
+                href="/ems-muscle-mapper/"
+                {% if active_product == 'muscle-mapper' %}aria-current="page"{% endif %}>
+                Muscle Mapper
+            </a>
+            <a class="product-tab{% if active_product == 'live-twin' %} is-active{% endif %}"
+                href="/live-twin/"
+                {% if active_product == 'live-twin' %}aria-current="page"{% endif %}>
+                Live Twin
+            </a>
+            <a class="product-tab{% if active_product == 'human-control' %} is-active{% endif %}"
+                href="/human-control/"
+                {% if active_product == 'human-control' %}aria-current="page"{% endif %}>
+                Human Control
+            </a>
+        </nav>
+    </div>
+</header>
+{%- endmacro %}

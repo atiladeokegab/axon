@@ -1,0 +1,12 @@
+{% macro electric_rail(position="bottom") -%}
+<div class="electric-rail{% if position == 'top' %} electric-rail--top{% endif %}" aria-hidden="true">
+    <svg viewBox="0 0 1200 42" preserveAspectRatio="none">
+        <path class="electric-rail__trace"
+            d="M0 29 L86 29 L98 20 L108 35 L122 13 L135 29 L278 29 L291 22 L300 33 L314 17 L328 29 L518 29 L530 14 L543 35 L558 21 L570 29 L746 29 L760 18 L772 34 L787 12 L803 29 L963 29 L978 22 L990 33 L1005 16 L1020 29 L1200 29" />
+        <path class="electric-rail__pulse"
+            d="M0 29 L86 29 L98 20 L108 35 L122 13 L135 29 L278 29 L291 22 L300 33 L314 17 L328 29 L518 29 L530 14 L543 35 L558 21 L570 29 L746 29 L760 18 L772 34 L787 12 L803 29 L963 29 L978 22 L990 33 L1005 16 L1020 29 L1200 29" />
+        <path class="electric-rail__pulse electric-rail__pulse--echo"
+            d="M0 29 L86 29 L98 20 L108 35 L122 13 L135 29 L278 29 L291 22 L300 33 L314 17 L328 29 L518 29 L530 14 L543 35 L558 21 L570 29 L746 29 L760 18 L772 34 L787 12 L803 29 L963 29 L978 22 L990 33 L1005 16 L1020 29 L1200 29" />
+    </svg>
+</div>
+{%- endmacro %}

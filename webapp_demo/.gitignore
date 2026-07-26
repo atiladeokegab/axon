@@ -1,0 +1,14 @@
+__pycache__/
+.venv/
+.pytest_cache/
+yolov8n-pose.pt
+*.log
+*.pyc
+.env
+.env.*
+!.env.example
+# Uploaded/test images. NOTE: this also excluded the landing page's
+# hero.jpeg, which is why a fresh checkout 500s on GET /hero.jpeg - the route
+# now falls back to a tracked PNG. If you want the real hero image in the repo,
+# commit it explicitly:  git add -f hero.jpeg
+*.jpeg

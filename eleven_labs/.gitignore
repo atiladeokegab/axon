@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+models/
+
+# Secrets. Anything committed here is public the moment the repo is pushed, and
+# a key in git history survives deleting the file — rotation is the only fix.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+scratch_*.png
+scratch_*.png.b64
+
+# Calibration photos and the pad-placement overlays drawn on them are pictures
+# of a real person's arm (the protocol calls for sleeves-off shots). Kept out of
+# git history so adding a remote later can't publish them — history rewrites are
+# the only way back once they're committed.
+calib_*.png
+demo_overlay_*.png

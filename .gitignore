@@ -16,9 +16,28 @@ calibration_ch*.json
 pose_capture.json
 pose_capture_*.json
 
-# Side projects living in this folder but not part of the controller.
-# Excluded for now so the control-system history stays reviewable; both carry
-# their own dependencies and their own .env.example, so they are self-contained
-# and can be brought in as their own commits (or their own repos) later.
-eleven_labs/
-webapp_demo/
+# eleven_labs/ and webapp_demo/ were excluded wholesale while the control
+# system was the only reviewable history. They are now part of the demo, so
+# they are tracked — each carries its own .gitignore covering its venv,
+# caches and downloaded model weights.
+
+# Secrets, everywhere. The .env.example templates ARE committed and must
+# therefore only ever hold placeholders.
+.env
+.env.*
+!.env.example
+eleven_labs/API_keys/
+*.key
+*.pem
+
+# Downloaded model weights: multi-MB, fetched by scripts/download_pose_model.py
+# and reproducible from it, so there is no reason to carry them in git.
+models/
+*.task
+*.pt
+
+# Photos of a real person's arm taken during pad calibration.
+calib_*.png
+demo_overlay_*.png
+scratch_*.png
+scratch_*.png.b64

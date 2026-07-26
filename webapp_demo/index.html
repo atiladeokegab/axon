@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+{% from "partials/electric_rail.html" import electric_rail %}
+{% from "partials/site_header.html" import site_header %}
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AXON — your digital electric neurotransmitter.">
+  <link rel="icon" type="image/png" href="/static/images/icon.png">
+  <link rel="apple-touch-icon" href="/static/images/icon.png">
+    <title>AXON — Digital Electric Neurotransmitter</title>
+    <link rel="stylesheet" href="/static/css/global.css">
+    <link rel="stylesheet" href="/static/css/landing.css">
+</head>
+
+<body class="landing-page site-with-header">
+    {{ site_header() }}
+
+    <div class="signal-field" id="signalField" aria-hidden="true">
+        <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" focusable="false">
+            <g class="signal-field__drift">
+                <g class="signal-field__fibres signal-field__fibres--rear">
+                    <path d="M-90 188 C176 82 382 112 600 238 S1038 390 1530 132" />
+                    <path d="M-120 246 C164 140 390 158 604 276 S1054 414 1516 194" />
+                    <path d="M-108 310 C156 214 374 220 590 326 S1026 468 1524 260" />
+                    <path d="M-138 112 C132 302 352 26 624 188 S1114 356 1544 76" />
+                    <path d="M-126 420 C154 324 386 350 612 438 S1066 560 1532 354" />
+                    <path d="M-112 566 C168 450 398 476 626 574 S1080 698 1522 488" />
+                    <path d="M-60 690 C204 566 426 584 636 690 S1070 810 1510 604" />
+                    <path d="M-82 766 C190 646 408 660 624 758 S1050 870 1520 684" />
+                    <path d="M-100 850 C188 744 426 758 648 842 S1090 930 1536 786" />
+                </g>
+
+                <g class="signal-field__fibres signal-field__fibres--front">
+                    <path d="M-72 216 C182 112 388 140 606 258 S1044 398 1512 164" />
+                    <path d="M-84 282 C174 184 388 202 600 304 S1020 446 1518 230" />
+                    <path d="M-56 354 C202 250 410 268 618 366 S1038 510 1500 304" />
+                    <path d="M-68 506 C206 392 426 418 638 514 S1068 632 1510 430" />
+                    <path d="M-42 716 C226 598 440 616 648 716 S1072 824 1490 640" />
+                    <path d="M-64 822 C214 710 438 720 652 812 S1086 908 1504 746" />
+                </g>
+
+                <g class="signal-field__fibres signal-field__fibres--arcs">
+                    <path d="M168 560 C278 320 526 242 720 374 C914 242 1162 320 1272 560" />
+                    <path d="M228 612 C346 410 542 350 720 452 C898 350 1094 410 1212 612" />
+                    <path d="M302 658 C416 500 566 462 720 532 C874 462 1024 500 1138 658" />
+                    <path d="M380 698 C486 584 602 564 720 606 C838 564 954 584 1060 698" />
+                </g>
+
+                <g class="signal-field__fibres signal-field__fibres--cross">
+                    <path d="M96 -70 C178 164 122 350 272 532 S472 754 408 970" />
+                    <path d="M238 -82 C326 150 264 350 398 522 S566 760 520 970" />
+                    <path d="M1264 -82 C1178 152 1230 348 1088 524 S906 752 974 968" />
+                    <path d="M1122 -76 C1034 156 1096 354 962 530 S790 762 836 972" />
+                </g>
+
+                <g class="signal-field__wave">
+                    <path class="signal-field__wave-trace"
+                        d="M-20 472 L176 472 L206 460 L226 489 L250 435 L276 472 L470 472 L498 463 L518 486 L542 442 L568 472 L766 472 L792 459 L812 491 L840 431 L866 472 L1066 472 L1092 462 L1112 486 L1138 440 L1164 472 L1460 472" />
+                    <path class="signal-field__wave-pulse"
+                        d="M-20 472 L176 472 L206 460 L226 489 L250 435 L276 472 L470 472 L498 463 L518 486 L542 442 L568 472 L766 472 L792 459 L812 491 L840 431 L866 472 L1066 472 L1092 462 L1112 486 L1138 440 L1164 472 L1460 472" />
+                </g>
+
+                <g class="signal-field__nodes">
+                    <circle cx="250" cy="435" r="7" />
+                    <circle cx="542" cy="442" r="5" />
+                    <circle cx="840" cy="431" r="7" />
+                    <circle cx="1138" cy="440" r="5" />
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <main class="landing-hero">
+        <section class="hero-copy" aria-labelledby="heroTitle">
+            <p class="hero-kicker text-enter enter-2">
+                <span aria-hidden="true"></span>
+                Digital signal. Human response.
+            </p>
+            <h1 class="hero-title text-enter enter-3" id="heroTitle">
+                <span class="hero-title__phrase hero-title__phrase--left">From thought</span>
+                <span class="hero-title__hand" aria-hidden="true">
+                    <img src="/static/images/hand-hero.png" alt="">
+                </span>
+                <span class="hero-title__phrase hero-title__phrase--right hero-title__accent">To motion.</span>
+            </h1>
+            <p class="hero-caption text-enter enter-4">
+                AXON is your digital electric neurotransmitter — intelligent muscle mapping designed to make every
+                signal more precise.
+            </p>
+            <div class="hero-actions text-enter enter-5">
+                <button class="site-button hero-cta" type="button" title="Interest registration is coming soon">
+                    Register interest
+                    <span aria-hidden="true">↗</span>
+                </button>
+                <a class="hero-text-link" href="/ems-muscle-mapper/">
+                    Explore the mapper
+                    <span aria-hidden="true">→</span>
+                </a>
+            </div>
+        </section>
+
+        <figure class="hero-media" aria-label="AXON electronics prototype">
+            <div class="hero-media__frame">
+                <img class="hero-image hero-image--base" src="/hero.jpeg"
+                    alt="AXON electronics prototype assembled with relay boards, microcontrollers and breadboards">
+                <img class="hero-image hero-image--distortion hero-image--distortion-a" src="/hero.jpeg" alt=""
+                    aria-hidden="true">
+                <img class="hero-image hero-image--distortion hero-image--distortion-b" src="/hero.jpeg" alt=""
+                    aria-hidden="true">
+                <span class="hero-media__scan" aria-hidden="true"></span>
+            </div>
+        </figure>
+
+        <a class="hero-scroll text-enter enter-5" href="#approach">
+            <span aria-hidden="true"></span>
+            Scroll to explore
+        </a>
+    </main>
+
+    <section class="possibilities-section" id="approach" aria-labelledby="possibilitiesTitle">
+        <div class="possibilities-copy scroll-reveal">
+            <p class="eyebrow">From signal to movement</p>
+            <h2 id="possibilitiesTitle">A clearer connection between intent and response.</h2>
+            <p>AXON brings digital intelligence and electrical stimulation into one evolving platform.</p>
+        </div>
+
+        <div class="placeholder-grid" aria-label="Upcoming AXON capabilities">
+            <article class="placeholder-card scroll-reveal" aria-label="Upcoming capability placeholder one"></article>
+            <article class="placeholder-card scroll-reveal" aria-label="Upcoming capability placeholder two"></article>
+            <article class="placeholder-card scroll-reveal" aria-label="Upcoming capability placeholder three">
+            </article>
+        </div>
+
+        <a class="site-button begin-cta scroll-reveal" href="/ems-muscle-mapper/">
+            Begin Using AXON
+        </a>
+    </section>
+
+    {{ electric_rail() }}
+
+    <script src="/static/js/background.js" defer></script>
+    <script src="/static/js/landing.js" defer></script>
+</body>
+
+</html>
