@@ -526,6 +526,7 @@
       <div class="flow-actions">
         <span class="flow-count" id="flow-count" hidden></span>
         <button type="button" class="flow-secondary" id="flow-back" hidden>Back</button>
+        <button type="button" class="flow-secondary" id="flow-done" hidden>Done</button>
         <button type="button" class="flow-primary" id="flow-next">Begin</button>
       </div>
     </section>
@@ -2144,9 +2145,11 @@
     const flowChoices = document.querySelector("#flow-choices");
     const flowCount = document.querySelector("#flow-count");
     const flowBack = document.querySelector("#flow-back");
+    const flowDone = document.querySelector("#flow-done");
     const flowNext = document.querySelector("#flow-next");
 
     let session = null;   // null when idle
+    let lastSession = null;   // {exercise, reps, total} snapshot, kept after stopSession() nulls `session`
 
     function degrees(radians) {
       return radians * 180 / Math.PI;
@@ -2204,6 +2207,7 @@
       const settings = options || {};
       if (!session) return;
       if (!settings.silent) speak("stopping", { force: true });
+      lastSession = { exercise: session.exercise.name, reps: session.reps, total: session.exercise.reps };
       session = null;
       setMetronome(false);
       paintSession();
@@ -2268,6 +2272,7 @@
       flowChoices.replaceChildren();
       flowCount.hidden = true;
       flowBack.hidden = flow.step === 0;
+      flowDone.hidden = true;
       flowNext.classList.remove("is-stop");
       flowNext.disabled = false;
 
@@ -2317,6 +2322,7 @@
       if (!session) {
         flowInstruction.textContent = "Session finished.";
         flowNext.textContent = "Again";
+        flowDone.hidden = !lastSession;
         return;
       }
       const phaseText = {
@@ -2406,6 +2412,14 @@
         return;
       }
       enterStep(flow.step - 1);
+    });
+
+    flowDone.addEventListener("click", () => {
+      if (!lastSession) return;
+      const count = Number(window.localStorage.getItem("axon_session_count") || "0") + 1;
+      window.localStorage.setItem("axon_session_count", String(count));
+      window.localStorage.setItem("axon_last_session", JSON.stringify(lastSession));
+      window.location.href = "results.html";
     });
 
     // Held while choosing an arm and placing pads. Returns null once a session
