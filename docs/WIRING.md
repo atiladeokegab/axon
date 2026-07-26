@@ -7,7 +7,7 @@
 
 | Item | Qty | Role |
 |---|---|---|
-| Goouuu Tech ESP32-S3-N16R8 | 1 | controller |
+| Axiometa Genesis Mini v1r2 (ESP32-S3-Mini-1-N4R2) | 1 | controller |
 | AUVON AS8016 TENS/EMS unit | 2 | stimulator (4 channels each) |
 | TONGLING JQC-3FF-S-Z 4-relay module | 1 | channels CH1–CH4 |
 | SONGLE SRD-05VDC-SL-C 4-relay module | 1 | channels CH5–CH8 |
@@ -21,33 +21,62 @@
 
 ## Pin map
 
-| Signal | GPIO | Goes to |
-|---|---|---|
-| CH1 biceps | 4 | relay module 1, IN1 |
-| CH2 triceps | 5 | relay module 1, IN2 |
-| CH3 anterior deltoid | 6 | relay module 1, IN3 |
-| CH4 posterior deltoid | 7 | relay module 1, IN4 |
-| CH5 middle deltoid | 15 | relay module 2, IN1 |
-| CH6 spare | 16 | relay module 2, IN2 |
-| CH7 finger flexors | 17 | relay module 2, IN3 |
-| CH8 finger extensors | 18 | relay module 2, IN4 |
-| Timer keep-alive | 2 | HK4100F driver |
-| Hardware e-stop | 8 | NC button → GND |
+The Genesis Mini brings out 12 GPIO on four **AX22 ports**. Those 12 are the
+only pins available; we use 10.
 
-### Pins you must not use on the N16R8
+| Signal | GPIO | AX22 port | Goes to |
+|---|---|---|---|
+| CH1 biceps | 4 | P1.IO0 | relay module 1, IN1 |
+| CH2 triceps | 5 | P2.IO2 | relay module 1, IN2 |
+| CH3 anterior deltoid | 6 | P2.IO1 | relay module 1, IN3 |
+| CH4 posterior deltoid | 7 | P2.IO0 | relay module 1, IN4 |
+| CH5 middle deltoid | 15 | P3.IO2 | relay module 2, IN1 |
+| CH6 spare | 16 | P3.IO1 | relay module 2, IN2 |
+| CH7 finger flexors | 17 | P4.IO1 | relay module 2, IN3 |
+| CH8 finger extensors | 18 | P4.IO2 | relay module 2, IN4 |
+| Timer keep-alive | 2 | P1.IO2 | HK4100F driver |
+| **Hardware e-stop** | **9** | P3.IO0 | NC button → GND |
+| *(on-board NeoPixel)* | 21 | — | status indicator, nothing to wire |
 
-This board has **octal PSRAM**, which is greedier than the usual quad variant:
+Spare port pins: **GPIO1** (P4.IO0), and **GPIO3** (P1.IO1) which is a strapping
+pin and best left alone. Prefer GPIO1.
 
-| Range | Why |
+### Migrated from the Goouuu N16R8
+
+Channels CH1–CH8 and the timer line are on **the same GPIO numbers as before**,
+because the pins we were already using are exactly the ones this board exposes.
+The harness moves across essentially unchanged.
+
+**One wire must move: the e-stop, GPIO8 → GPIO9.** GPIO8 is the battery-sense
+pin on the Genesis Mini. Left on 8, the e-stop would have fought the battery
+monitor — a genuine hardware fault presenting as an intermittent mystery.
+
+### Pins you must not use on the Genesis Mini
+
+The reserved set is *different* from the old board, and mostly for board
+reasons rather than silicon ones:
+
+| Pin(s) | Why |
 |---|---|
+| GPIO8, 34, 46 | **board:** battery sense / status / enable — GPIO8 was our old e-stop |
+| GPIO10, 11 | **board:** I2C (STEMMA QT) |
+| GPIO12, 13, 14 | **board:** SPI bus |
+| GPIO21 | **board:** NeoPixel — used deliberately by `lib/status_led.py` |
+| GPIO45 | **board:** user button (also a strapping pin) |
 | GPIO26–32 | SPI flash |
-| GPIO33–37 | **octal PSRAM** (this is the one that catches people) |
-| GPIO0, 3, 45, 46 | strapping pins |
-| GPIO19, 20 | native USB |
+| GPIO0, 3, 45, 46 | strapping pins. GPIO3 *is* on port P1, so it is reachable and tempting — a relay module's pull-down on it changes the JTAG source at reset |
+| GPIO19, 20 | native USB (USB-C CDC/JTAG) |
 | GPIO43, 44 | UART0 console/REPL |
-| GPIO48 | onboard RGB LED |
 
-`config/pins.py` asserts this at boot via `assert_no_conflicts()`.
+GPIO33–37 were reserved on the old board for its **octal** PSRAM. This board's
+PSRAM is **quad**, so they are electrically free — but the Genesis Mini does not
+route them to a header, and GPIO34 is the battery monitor, so they remain
+unusable in practice.
+
+`config/pins.py` asserts all of this at boot via `assert_no_conflicts()`, which
+now also checks the **e-stop input** (it previously checked outputs only, which
+is exactly why `ESTOP_PIN = 8` passed silently) and rejects any pin that no AX22
+port brings out.
 
 ## Relay modules
 
@@ -119,7 +148,7 @@ button of both units**; firmware pulses it every 5 minutes.
 
 ## E-stop wiring and noise immunity
 
-Normally-closed pushbutton between **GPIO8 and GND**, using the ESP32's internal
+Normally-closed pushbutton between **GPIO9 and GND**, using the ESP32's internal
 pull-up. At rest the closed button holds the pin LOW; pressing (or a broken
 lead) lets it float HIGH, which triggers the kill.
 
@@ -133,10 +162,10 @@ If false trips still occur, fix it in hardware rather than raising the debounce
 further:
 
 1. **Add an external pull-down… no — a stronger pull-up.** Fit a **10 kΩ
-   resistor from GPIO8 to 3V3**. This parallels the weak internal pull-up so
+   resistor from GPIO9 to 3V3**. This parallels the weak internal pull-up so
    the *closed* button still wins easily, but it does not help noise on its own —
    the real gain is item 2.
-2. **Add an RC filter at the pin: 100 nF from GPIO8 to GND.** With the pull-up
+2. **Add an RC filter at the pin: 100 nF from GPIO9 to GND.** With the pull-up
    this forms a low-pass filter that swallows coupled spikes before the pin
    sees them. Cheapest and most effective single change.
 3. **Route the e-stop lead away from the relay wiring** — do not run it parallel

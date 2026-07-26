@@ -879,6 +879,25 @@
     // ~2.4x faster on a 144Hz screen than on 60Hz). Higher = snappier and
     // noisier, lower = smoother and laggier; 16 covers ~90% of a move in 150ms.
     const POSE_SMOOTHING_RATE = 16;
+
+    // ...but a single rate has to serve two opposite requirements. While the
+    // arm is HELD STILL we want heavy smoothing, because that is when residual
+    // jitter is the only thing moving and it is the most visible. While it is
+    // MOVING we want almost none, or the arm visibly lags the subject. A fixed
+    // 16 splits the difference and does neither well: still poses shimmer.
+    //
+    // So make the rate follow the pose's own speed - the one-euro filter
+    // (Casiez et al., CHI 2012), expressed as a rate rather than a cutoff.
+    // Barely moving: falls to POSE_SMOOTHING_MIN_RATE and smooths hard.
+    // Moving: climbs with speed and gets out of the way.
+    //
+    // The control loop applies the same idea independently on its own copy of
+    // the data (controller/filters.py) - this one is display only and changing
+    // it cannot affect stimulation.
+    const POSE_ADAPTIVE_SMOOTHING = true;
+    const POSE_SMOOTHING_MIN_RATE = 5;    // still: ~200 ms time constant
+    const POSE_SMOOTHING_BETA = 9;        // rate gained per scene-unit/s of speed
+    const POSE_SMOOTHING_MAX_RATE = 30;   // never slower to respond than this
     // Matches the old flat 0.08/frame at 60Hz: -ln(1-0.08)*60 ~= 5.
     const VIEW_SMOOTHING_RATE = 5;
     // Ignore huge deltas after the tab is backgrounded, so returning to it
@@ -1837,6 +1856,10 @@
     const smoothedElbow = new THREE.Vector3();
     const smoothedWrist = new THREE.Vector3();
     let hasPoseTarget = false;
+    // Low-passed speed of the incoming pose, in scene units per second. Drives
+    // the adaptive smoothing rate: near zero while a posture is held, rising
+    // as the subject moves. See POSE_SMOOTHING_MIN_RATE above.
+    let poseSpeed = 0;
 
     let lastPoseAt = 0;
 
@@ -1912,6 +1935,23 @@
         setTrackingState(lastPoseAt ? "hold" : "waiting");
         showPrompt(message.status);
         return;
+      }
+
+      // Track how fast the pose is genuinely moving, for the adaptive
+      // smoothing rate. Measured between successive TARGETS (what the
+      // estimator reported), not between rendered frames, so it is a property
+      // of the incoming data and not of the display refresh rate.
+      //
+      // The speed estimate is itself low-passed: a raw frame-to-frame
+      // difference of a noisy signal is mostly noise, and feeding that in
+      // would make the smoothing flap open at random and undo the point.
+      if (hasPoseTarget && lastPoseAt) {
+        const dt = (performance.now() - lastPoseAt) / 1000;
+        if (dt > 0.002 && dt < 1) {
+          const moved = 0.5 * (elbowPosition.distanceTo(targetElbow)
+                             + wristPosition.distanceTo(targetWrist));
+          poseSpeed = 0.3 * (moved / dt) + 0.7 * poseSpeed;
+        }
       }
 
       targetElbow.copy(elbowPosition);
@@ -2110,7 +2150,11 @@
       const elapsed = clock.elapsedTime;
 
       if (hasPoseTarget) {
-        const poseK = 1 - Math.exp(-POSE_SMOOTHING_RATE * delta);
+        const poseRate = POSE_ADAPTIVE_SMOOTHING
+          ? Math.min(POSE_SMOOTHING_MAX_RATE,
+                     POSE_SMOOTHING_MIN_RATE + POSE_SMOOTHING_BETA * poseSpeed)
+          : POSE_SMOOTHING_RATE;
+        const poseK = 1 - Math.exp(-poseRate * delta);
         smoothedElbow.lerp(targetElbow, poseK);
         smoothedWrist.lerp(targetWrist, poseK);
         applyArmPose(smoothedElbow, smoothedWrist);

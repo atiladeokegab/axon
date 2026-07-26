@@ -97,8 +97,13 @@ natural zero, and the pose gravity returns the limb to.
    sending** (or send with an old timestamp). Silence safely stops stimulation;
    a fabricated pose makes the controller drive the limb against reality.
 3. **Timestamp every message.** It is how we detect staleness.
-4. Smoothing on your side is welcome; we additionally low-pass filter
-   (`POSE_FILTER_ALPHA = 0.35`) because vision jitter chatters the relays.
+4. **Send raw positions; do not pre-smooth.** We filter on our side — a median
+   window, then an adaptive low-pass (one-euro), then a physiological rate
+   limit — and we measure the residual noise to size the control deadband. If
+   you smooth first, that measurement reports your filter's output rather than
+   the estimator's real quality, and the deadband is sized from a number that
+   no longer means anything. Send us the noise and let us handle it.
+   See `docs/CONTROL.md`.
 5. Malformed messages are counted and dropped, never partially applied.
 
 ---

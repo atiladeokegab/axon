@@ -143,7 +143,15 @@ MARKER_MIN_FLEX_DISPLACEMENT_PX = 3.0
 # Average per-landmark visibility required to trust a detected arm side.
 # Below this, treat it as "tracking lost" and return None rather than a
 # low-confidence guess at coordinates.
-MIN_LANDMARK_VISIBILITY = 0.5
+#
+# Overridable from the environment so the control side can demand a stricter
+# threshold without changing this default. Measured on a 20 s held-posture
+# capture, 0.5 let through ~13 episodes of roughly 200 ms each where the arm
+# landmarks had wandered but still scored above it - visible downstream as
+# shoulder abduction excursions of 25-45 deg while the subject was motionless.
+# Those frames are better dropped than filtered: a dropped frame ages out and
+# stops stimulation, whereas a confidently wrong one is acted upon.
+MIN_LANDMARK_VISIBILITY = float(os.environ.get("MIN_LANDMARK_VISIBILITY", "0.5"))
 
 
 def assert_real_mode_allowed(host: str | None = None) -> None:

@@ -54,27 +54,33 @@ You need a cable for this stage only.
 
 ### 1. Flash MicroPython
 
-**Download the firmware first — it is not in this repo.** You need the
-**`SPIRAM_OCT`** variant: this board is an **N16R8**, which has *octal* PSRAM,
-and the plain `ESP32_GENERIC_S3` build will not use it correctly.
+**Download the firmware first — it is not in this repo.** Take the **standard**
+`ESP32_GENERIC_S3` build. It covers "most ESP32-S3 boards with 4 MiB or more of
+flash, including WROOM and **MINI** modules", and auto-detects PSRAM at startup.
 
-Download page: <https://micropython.org/download/ESP32_GENERIC_S3/> — scroll to
-the section headed **"Firmware (Support for Octal-SPIRAM)"** and take the
-newest `.bin`.
+Download page: <https://micropython.org/download/ESP32_GENERIC_S3/> — take the
+newest `.bin` from the **first** "Firmware" section.
 
 At the time of writing that is **v1.28.0 (2026-04-06)**:
 
 ```
-ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin
-https://micropython.org/resources/firmware/ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin
+ESP32_GENERIC_S3-20260406-v1.28.0.bin
+https://micropython.org/resources/firmware/ESP32_GENERIC_S3-20260406-v1.28.0.bin
 ```
 
 Below, `<FIRMWARE.bin>` means **the full path to the file you just downloaded**,
-e.g. `%USERPROFILE%\Downloads\ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin`.
+e.g. `%USERPROFILE%\Downloads\ESP32_GENERIC_S3-20260406-v1.28.0.bin`.
 Check the version on the site rather than copying the filename above verbatim.
 
-> Take the file with **`SPIRAM_OCT` in its name**. A plain
-> `ESP32_GENERIC_S3-<date>-<version>.bin` is the wrong variant for this board.
+> **Two variants on that page are wrong for this board.**
+>
+> * **`SPIRAM_OCT`** is for *octal* PSRAM. The previous board (Goouuu N16R8)
+>   needed it; the Genesis Mini's **N4R2** is *quad* (QSPI). Flashing the octal
+>   image here typically gives a board that enumerates over USB and never
+>   reaches the REPL — easy to misread as a dead board.
+> * **`FLASH_4M`** looks right because this board does have 4 MB of flash, but
+>   the download page marks that variant **obsolete** and says to use the
+>   standard one.
 
 Install the flashing tools into the venv (once):
 
@@ -116,18 +122,29 @@ ls /dev/cu.*        # macOS
 Put the board into download mode: **hold BOOT, tap RESET, release BOOT.**
 
 The module form (`py -m esptool`) is used here because it works whether or not
-the `esptool` / `esptool.py` console script ends up on your PATH:
+the `esptool` console script ends up on your PATH. (esptool v5 also renamed the
+console script itself: `esptool.py` → `esptool`. The `.py` form still works but
+warns.)
+
+> **esptool v5 renamed the commands.** Underscores became hyphens
+> (`erase_flash` → `erase-flash`, `write_flash` → `write-flash`, `flash_id` →
+> `flash-id`), along with options such as `--flash_size` → `--flash-size`. The
+> spellings below need **esptool v5 or later**; check with `py -m esptool
+> version` and upgrade with `py -m pip install --upgrade "esptool>=5.0"` if
+> needed. The old underscore names still work on v5 but warn, and are due for
+> removal.
+
 
 ```powershell
-py -m esptool --chip esp32s3 --port <PORT> erase_flash
-py -m esptool --chip esp32s3 --port <PORT> --baud 460800 write_flash -z 0 <FIRMWARE.bin>
+py -m esptool --chip esp32s3 --port <PORT> erase-flash
+py -m esptool --chip esp32s3 --port <PORT> --baud 460800 write-flash -z 0 <FIRMWARE.bin>
 ```
 
 On macOS / Linux:
 
 ```bash
-python -m esptool --chip esp32s3 --port /dev/ttyUSB0 erase_flash
-python -m esptool --chip esp32s3 --port /dev/ttyUSB0 --baud 460800 write_flash -z 0 <FIRMWARE.bin>
+python -m esptool --chip esp32s3 --port /dev/ttyUSB0 erase-flash
+python -m esptool --chip esp32s3 --port /dev/ttyUSB0 --baud 460800 write-flash -z 0 <FIRMWARE.bin>
 ```
 
 ### 2. Create the directories and push the tree
@@ -344,10 +361,10 @@ second `mpremote`. Windows sometimes hangs instead of reporting "port busy".
 answers even on a completely blank chip:
 
 ```powershell
-py -m esptool --chip esp32s3 --port <PORT> flash_id
+py -m esptool --chip esp32s3 --port <PORT> flash-id
 ```
 
-If `flash_id` responds but `mpremote` still hangs, the hardware and cable are
+If `flash-id` responds but `mpremote` still hangs, the hardware and cable are
 fine and the firmware is the problem — flash MicroPython.
 
 **5. Later on, a busy `main.py` can also block it.** Once firmware is running,

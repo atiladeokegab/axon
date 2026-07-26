@@ -6,9 +6,19 @@ __pycache__/
 .venv/
 
 # Downloaded MicroPython firmware images (get them from micropython.org;
-# see docs/DEPLOY.md - use the SPIRAM_OCT variant for this N16R8 board)
+# see docs/DEPLOY.md - the STANDARD ESP32_GENERIC_S3 build for the Genesis
+# Mini's N4R2, NOT the SPIRAM_OCT variant the old Goouuu board needed)
 bin/
 *.bin
 
 # Per-subject calibration output
 calibration_ch*.json
+pose_capture.json
+pose_capture_*.json
+
+# Side projects living in this folder but not part of the controller.
+# Excluded for now so the control-system history stays reviewable; both carry
+# their own dependencies and their own .env.example, so they are self-contained
+# and can be brought in as their own commits (or their own repos) later.
+eleven_labs/
+webapp_demo/

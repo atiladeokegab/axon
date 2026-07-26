@@ -9,7 +9,47 @@
 # every status heartbeat, so "is the board actually running my new code?" is a
 # one-second question instead of a guess. Deploys that silently fail, or a
 # reboot that never happened, are otherwise invisible.
-FIRMWARE_VERSION = "2026-07-25.8-relay-polarity"
+#
+# The board name is IN the version string on purpose. The two boards take
+# different MicroPython images and different pin maps, and mixing them up
+# presents as silent hardware faults rather than errors - a channel that never
+# clicks, or an e-stop wired to the battery monitor. Now the heartbeat says
+# which board's firmware is actually running.
+FIRMWARE_VERSION = "2026-07-26.11-bank-concurrency"
+
+# ---- On-board status LED --------------------------------------------------
+# Genesis Mini only: NeoPixel on GPIO21 (see lib/status_led.py for the colour
+# map). Set False to keep the board dark - it changes nothing else, the LED is
+# never read by any control or safety decision.
+#
+# NOT A SAFETY INDICATOR. A colour is a convenience for the operator; it is not
+# permission to touch anyone. The authoritative checks remain the subject's
+# physical kill switch and a meter on the relay contacts (docs/SAFETY.md).
+STATUS_LED_ENABLED = True
+
+# ---- Per-channel duty ceilings --------------------------------------------
+# DUTY_MAX is the ceiling for everything not listed here. The grip channels are
+# the one deliberate exception.
+#
+# WHY GRIP IS DIFFERENT. Every other channel is servoed: the controller
+# modulates duty to place a joint, so duty is the force knob and 0.70 keeps a
+# margin. Grip is TRIGGERED, treated as an end-effector with two states, and a
+# partial grasp is not a useful state - it is a hand that drops the object. So
+# CH7/CH8 are allowed a continuous 1.0.
+#
+# WHAT THIS DOES NOT RELAX. MAX_BURST_MS (4 s) and COOLDOWN_MS (2 s) still
+# apply, so a held grasp releases after 4 seconds and needs 2 seconds of rest.
+# That is a real limit on the demo: you cannot hold an object indefinitely.
+# It is left in place because the finger flexors are small muscles on a lower
+# intensity bank and fatigue fastest of anything on the arm.
+#
+# Side effect worth having: at duty 1.0 the relay stops switching entirely, so
+# the capacitive turn-on jolt that the dummy load exists to absorb simply does
+# not recur while the grip is held.
+CHANNEL_DUTY_MAX = {
+    "CH7": 1.0,      # finger flexors  - grip close
+    "CH8": 1.0,      # finger extensors - grip release
+}
 
 # ---- Software PWM ---------------------------------------------------------
 # Mechanical relays: ~10 ms close / ~5 ms open, clean repeatable ~20-30 ms.

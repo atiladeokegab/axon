@@ -58,7 +58,8 @@ are malformed, or ask for too much, it clamps them or opens every relay.
 | `firmware/lib/stim_array.py` | The 8 channels + auto-off keep-alive |
 | `firmware/lib/safety.py` | Arm/disarm, watchdog, duty clamping |
 | `firmware/lib/wifi_manager.py` | Station-mode Wi-Fi + WebREPL |
-| `tools/launch.py` | **One command: pose service + controller** |
+| `tools/launch.py` | **One command: pose service + 3D twin + controller** |
+| `tools/stop.py` | Stop leftover processes (frees the camera and ports) |
 | `tools/deploy_wifi.py` | Wireless firmware deploy (no USB) |
 | `tools/bench.py` | Interactive channel tester for hardware bring-up |
 | `tools/calibrate.py` | Per-subject recruitment-curve sweep |
@@ -146,7 +147,7 @@ line and confirm the prompt shows `(.venv)`.
 
 ```bash
 cd controller
-python test_simulation.py     # 79 offline checks
+python test_simulation.py     # 151 offline checks
 python run.py --sim           # virtual arm, drive it with the arrow keys
 ```
 
@@ -160,7 +161,9 @@ Find your board's port first — it differs per machine and per USB socket:
 mpremote connect list        # the ESP32 / USB-JTAG / CP210x line is your board
 ```
 
-Then, with the octal-SPIRAM MicroPython build for the N16R8 flashed:
+Flash the **standard** `ESP32_GENERIC_S3` MicroPython build (this board is an
+N4R2 with *quad* PSRAM — not `SPIRAM_OCT`, and not the obsolete `FLASH_4M`).
+Then:
 
 ```bash
 mpremote fs mkdir :lib
@@ -197,23 +200,76 @@ bench> timer              # fire the auto-off keep-alive once
 bench> off
 ```
 
-### 4. Run for real
+### 4. Check the pose feed
+
+Camera setup dominates everything downstream — repeated captures on one rig gave
+elbow noise from 2.5° to 10.9° with no code change. Measure before closing the
+loop on a person. `run.py` binds the pose port, so start the vision side
+**without** the controller:
+
+```bash
+# terminal 1 - vision + 3D twin, pose port left free. Leave it open.
+python tools/launch.py --pose-only
+
+# terminal 2 - subject holds ONE posture still for 20 s
+python tools/pose_noise.py
+```
+
+It saves every capture (angles *and* landmarks) so settings can be re-tested
+with `--replay` instead of asking someone to sit still again, and `--label`
+tags captures so physical setups can be compared. It tells you which of the
+three distinguishable problems you have — broadband noise, tracking dropouts,
+or a bad camera angle — and what to do about each. See `docs/CONTROL.md`.
+
+You do **not** copy its recommended deadband anywhere: the controller measures
+live noise and sizes its own.
+
+### 5. Run for real
+
+**One command brings up the whole pipeline** — pose service, 3D twin and
+controller — and shuts it all down when you quit:
+
+```bash
+python tools/launch.py --no-board             # real pose, nothing stimulated
+python tools/launch.py --host <board-ip>      # full system
+```
+
+Useful variants:
+
+```bash
+python tools/launch.py --sim                      # virtual arm, no hardware at all
+python tools/launch.py --sim-hw --host <board-ip> # virtual arm, REAL relays
+python tools/launch.py --min-visibility 0.7       # stricter landmark confidence
+python tools/launch.py --no-open                  # do not open the twin in a browser
+python tools/launch.py --verbose                  # show the pose service's own log
+```
+
+Or the controller alone, if the pose service is already running:
 
 ```bash
 cd controller
-python run.py                        # auto-discover the board
+python run.py                         # auto-discover the board
 python run.py --host <board-ip>       # if discovery is blocked
 ```
 
+Stop with `Q` in the launcher's terminal — closing browser tabs does nothing,
+the browser is only a viewer. If a window was closed abruptly and something
+still holds the camera or a port: `python tools/stop.py`.
+
 ### Controls
 
-| Key | Action |
-|---|---|
-| `A` | **arm** — stimulation enabled (nothing moves until you press this) |
-| `→` | hand **out** to the side (abduction, range 0–90°) |
-| `←` | hand back **in** toward the body (only does anything if abd > 0°) |
-| `↑` / `↓` | raise / lower hand (shoulder flex + elbow) |
-| `G` | **toggle grip** open/closed — it is `G`, **not Shift** |
+One axis per key pair, each driving exactly one muscle pair:
+
+| Key | Action | Muscle |
+|---|---|---|
+| `A` | **arm** — stimulation enabled (nothing moves until you press this) | — |
+| `↑` | raise the arm (0–90°) | CH5 **middle** deltoid |
+| `↓` | lower the arm | none — **gravity**, so it only works if already raised |
+| `←` | swing **forward** | CH3 **anterior** deltoid |
+| `→` | swing **back** | CH4 **posterior** deltoid |
+| `W` | bend the elbow | CH1 biceps |
+| `S` | straighten the elbow | CH2 triceps |
+| `G` | **toggle grip** open/closed — it is `G`, **not Shift** | CH7 finger flexors |
 | `D` | disarm |
 | `X` | **EMERGENCY STOP** (latched; `A` to re-arm) |
 | `?` | show the key list again |
@@ -238,8 +294,9 @@ fields drop first, so state and board flags stay visible.
 | `[ARM]` / `[DIS]` / `[KIL]` | armed / disarmed / e-stopped |
 | `bd:ok` | what the **board** reports about itself (see below) |
 | `pose:OK` / `pose:STALE` / `SIM` | pose estimator feed |
-| `e45/60` | elbow: **actual 45°, target 60°** (`f` = shoulder flex, `a` = abduction) |
+| `e45/60` | elbow: **actual 45°, target 60°**. `f` = forward-back (+ is forward), `a` = elevation (how high the arm is) |
 | `g:C` / `g:-` | grip closed / open |
+| `noise:e4` | **only appears when the pose feed has degraded** — measured noise now exceeds that joint's deadband, so the arm will hunt around its target rather than sit on it. Check the camera, not the gains. |
 | `CH1:0.70` | channels firing and duty. `idle` = nothing stimulating |
 
 The controller stimulates until **actual** catches up to **target**; arrow keys
@@ -268,20 +325,34 @@ Two more reasons a key can look dead — both are announced on screen:
 
 ## Pin map — GPIO → relay → muscle
 
-| CH | ESP32 GPIO | Relay module / input | Muscle | Joint · role |
-|----|-----------|----------------------|--------|--------------|
-| 1 | **GPIO4** | Module 1 · IN1 | Biceps / brachialis | Elbow flex |
-| 2 | **GPIO5** | Module 1 · IN2 | Triceps | Elbow extend |
-| 3 | **GPIO6** | Module 1 · IN3 | Anterior deltoid | Shoulder flex |
-| 4 | **GPIO7** | Module 1 · IN4 | Posterior deltoid | Shoulder extend |
-| 5 | **GPIO15** | Module 2 · IN1 | Middle deltoid | Shoulder abduct (**gravity adducts**) |
-| 6 | **GPIO16** | Module 2 · IN2 | *spare — unused* | — |
-| 7 | **GPIO17** | Module 2 · IN3 | Finger flexors | Grip close |
-| 8 | **GPIO18** | Module 2 · IN4 | Finger extensors | Grip release |
+Board: **Axiometa Genesis Mini v1r2** (ESP32-S3-Mini-1-N4R2). Its 12 usable
+GPIO come out on four AX22 ports; we use 10 of them.
+
+| CH | GPIO | AX22 | Relay module / input | Muscle | Joint · role |
+|----|------|------|----------------------|--------|--------------|
+| 1 | **GPIO4** | P1.IO0 | Module 1 · IN1 | Biceps / brachialis | Elbow flex |
+| 2 | **GPIO5** | P2.IO2 | Module 1 · IN2 | Triceps | Elbow extend |
+| 3 | **GPIO6** | P2.IO1 | Module 1 · IN3 | Anterior deltoid | Shoulder flex |
+| 4 | **GPIO7** | P2.IO0 | Module 1 · IN4 | Posterior deltoid | Shoulder extend |
+| 5 | **GPIO15** | P3.IO2 | Module 2 · IN1 | Middle deltoid | Shoulder abduct (**gravity adducts**) |
+| 6 | **GPIO16** | P3.IO1 | Module 2 · IN2 | *spare — unused* | — |
+| 7 | **GPIO17** | P4.IO1 | Module 2 · IN3 | Finger flexors | Grip close |
+| 8 | **GPIO18** | P4.IO2 | Module 2 · IN4 | Finger extensors | Grip release |
 
 Module 1 drives TENS unit 1, Module 2 drives TENS unit 2. Two extra lines:
-**GPIO2** → TIMER keep-alive relay (across both units' TIMER buttons), and
-**GPIO8** → optional hardware e-stop button (normally-closed to GND).
+**GPIO2** (P1.IO2) → TIMER keep-alive relay across both units' TIMER buttons,
+and **GPIO9** (P3.IO0) → hardware e-stop button, normally-closed to GND.
+
+The on-board NeoPixel (**GPIO21**) shows firmware state — disarmed, armed,
+stimulating, killed, link lost. Convenience only: it is never read by any
+control or safety decision, and a green light is not permission to touch
+anyone.
+
+> **Ported from a Goouuu ESP32-S3-N16R8.** All eight channels and the timer line
+> kept their GPIO numbers. The e-stop moved **GPIO8 → GPIO9**, because GPIO8 is
+> battery sense on this board. The MicroPython image also changed: this is a
+> quad-PSRAM **N4R2**, so it takes the **standard** `ESP32_GENERIC_S3` build,
+> not `SPIRAM_OCT`.
 
 Full wiring — power, the dummy-load resistor that prevents the turn-on jolt,
 and electrode placement — is in [`docs/WIRING.md`](docs/WIRING.md).

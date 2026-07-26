@@ -84,6 +84,30 @@ class ArmController:
             joint, before + delta_deg, C.JOINT_LIMITS)
         return self.targets[joint] != before
 
+    def effective_deadband(self, joint):
+        """The deadband actually in force, which is not the configured one.
+
+        The configured value is a FLOOR. The real requirement is that the
+        deadband exceed the pose estimator's noise, and that noise is not a
+        property of this code - measured on one rig it varied 3x between runs.
+        So it is measured live and the deadband follows it.
+
+        Capped at DEADBAND_MAX_DEG: beyond that the pose feed is broken badly
+        enough that the operator needs to be told, not quietly accommodated by
+        an arm that ignores its targets.
+        """
+        floor = C.GAINS[joint][2]
+        if not getattr(C, "DEADBAND_ADAPTIVE", False):
+            return floor
+        noise = 0.0
+        try:
+            if hasattr(self.pose, "noise_sd"):
+                noise = self.pose.noise_sd(joint)
+        except Exception:
+            noise = 0.0
+        needed = getattr(C, "DEADBAND_NOISE_SIGMA", 3.0) * noise
+        return max(floor, min(needed, getattr(C, "DEADBAND_MAX_DEG", 12.0)))
+
     def within_deadband(self, joint):
         """True if this joint's error is too small to produce any stimulation.
 
@@ -91,7 +115,7 @@ class ArmController:
         the arm buzzing at the setpoint), but from the outside that looks
         identical to 'broken', so the UI needs to be able to say which it is.
         """
-        deadband = C.GAINS[joint][2]
+        deadband = self.effective_deadband(joint)
         error = self.targets[joint] - self.measured.get(joint, 0.0)
         return abs(error) < deadband, deadband
 
@@ -153,13 +177,19 @@ class ArmController:
 
         self.last_fault = None
         for joint in self.JOINTS:
+            # Re-size the deadband from the live noise estimate before using
+            # it. Doing this per cycle rather than at construction is the whole
+            # point: the noise changes with the lighting and the subject's
+            # position, not with anything we set at startup.
+            self.pids[joint].deadband = self.effective_deadband(joint)
             error = self.targets[joint] - self.measured.get(joint, 0.0)
             self.efforts[joint] = self.pids[joint].update(error, dt)
 
         self.duties = mapping.efforts_to_duties(
             self.efforts, grip=self.grip, duty_max=self.duty_max,
             min_effective=C.MIN_EFFECTIVE_DUTY,
-            deadzone=C.DEADZONE_COMPENSATION)
+            deadzone=C.DEADZONE_COMPENSATION,
+            grip_duty=getattr(C, "GRIP_KEY_DUTY", self.duty_max))
         self.link.send_duties(mapping.duties_to_list(self.duties), self.grip)
         self._ingest_board_status()
         return self.status()
@@ -209,4 +239,21 @@ class ArmController:
             "errors": {k: round(self.targets[k] - self.measured.get(k, 0.0), 1)
                        for k in self.JOINTS},
             "duties": {k: round(v, 3) for k, v in self.duties.items()},
+            # Surfaced so the operator can see the pose feed degrading BEFORE
+            # it shows up as an arm that will not settle. Reported, never acted
+            # on: the adaptive deadband that used to consume this is off by
+            # default (see settings.DEADBAND_ADAPTIVE) because widening the band
+            # was measured to buy no chatter reduction and cost real accuracy.
+            "deadbands": {k: round(self.effective_deadband(k), 1)
+                          for k in self.JOINTS},
+            "pose_noise": {k: round(self._noise(k), 1) for k in self.JOINTS},
         }
+
+    def _noise(self, joint):
+        """Live measurement noise for a joint, or 0.0 if unavailable."""
+        try:
+            if hasattr(self.pose, "noise_sd"):
+                return self.pose.noise_sd(joint)
+        except Exception:
+            pass
+        return 0.0

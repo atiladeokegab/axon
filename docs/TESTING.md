@@ -52,7 +52,7 @@ Expected final lines:
 
 ```
 ------------------------------------------------------------
-79 checks, 0 failed
+151 checks, 0 failed
 All checks passed.
 ```
 
@@ -108,18 +108,30 @@ use that port wherever `<PORT>` appears below (e.g. `COM7`, `/dev/ttyUSB0`). If
 nothing is listed, re-plug the board, then suspect a charge-only USB cable or a
 missing USB-serial driver. Details in [`DEPLOY.md`](DEPLOY.md).
 
-Download the firmware — **it is not in this repo**. Take the **`SPIRAM_OCT`**
-variant (this board is N16R8 = *octal* PSRAM; the plain build is wrong) from the
-"Firmware (Support for Octal-SPIRAM)" section of
-<https://micropython.org/download/ESP32_GENERIC_S3/>. `<FIRMWARE.bin>` below
-means the full path to that downloaded file, e.g.
-`%USERPROFILE%\Downloads\ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin`.
+Download the firmware — **it is not in this repo**. Take the **standard**
+`ESP32_GENERIC_S3` build from the first "Firmware" section of
+<https://micropython.org/download/ESP32_GENERIC_S3/>; it supports MINI modules
+and auto-detects PSRAM. `<FIRMWARE.bin>` below means the full path to that
+downloaded file, e.g.
+`%USERPROFILE%\Downloads\ESP32_GENERIC_S3-20260406-v1.28.0.bin`.
+
+> Not `SPIRAM_OCT` (that is for *octal* PSRAM — the old Goouuu N16R8, not this
+> board's N4R2), and not `FLASH_4M` (marked obsolete on the download page).
+
+
+> **esptool v5 renamed the commands.** Underscores became hyphens
+> (`erase_flash` → `erase-flash`, `write_flash` → `write-flash`, `flash_id` →
+> `flash-id`), along with options such as `--flash_size` → `--flash-size`. The
+> spellings below need **esptool v5 or later**; check with `py -m esptool
+> version` and upgrade with `py -m pip install --upgrade "esptool>=5.0"` if
+> needed. The old underscore names still work on v5 but warn, and are due for
+> removal.
 
 Put the board in download mode: hold **BOOT**, tap **RESET**, release **BOOT**.
 
 ```powershell
-py -m esptool --chip esp32s3 --port <PORT> erase_flash
-py -m esptool --chip esp32s3 --port <PORT> --baud 460800 write_flash -z 0 <FIRMWARE.bin>
+py -m esptool --chip esp32s3 --port <PORT> erase-flash
+py -m esptool --chip esp32s3 --port <PORT> --baud 460800 write-flash -z 0 <FIRMWARE.bin>
 ```
 
 (The `py -m esptool` module form works whether or not the `esptool` console

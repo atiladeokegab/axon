@@ -1,7 +1,7 @@
 # Code review — resolution log
 
 Findings from the external review, and what was done. Verified by
-`controller/test_simulation.py` (74 checks).
+`controller/test_simulation.py` (74 checks at the time of this review; 106 today).
 
 ## Blocking (all fixed)
 

@@ -103,6 +103,335 @@ and the approach is one-directional (from below):
 So **deadband is the accuracy knob; hold-vs-zero is the smoothness knob** —
 they are independent.
 
+## How much of the arm may be live at once
+
+Two rules, and only one of them is about anatomy.
+
+**1. Two channels sharing a current source are never closed together.** Each
+AS8016 shares one constant-current source across A1/A2 and another across
+B1/B2. Paralleling two electrode pairs across one source splits the current by
+impedance, so neither muscle receives its set value — and if one pad lifts, the
+other takes the whole current.
+
+The leads are patched so that **each antagonist pair sits on one bank**, which
+means every pair sharing a source is already a pair `ANTAGONIST_PAIRS` refuses.
+`assert_banks_safe()` checks that invariant at boot rather than trusting it,
+because it depends on how the jacks are patched and that is exactly the kind of
+thing that changes on a bench without the code being touched. Re-patch biceps
+and anterior deltoid onto the same bank and the board will refuse to start.
+
+**2. At most two arm channels may be live at once** (`MAX_CONCURRENT_ARM_CHANNELS`).
+Bank-to-bank the outputs are galvanically isolated, so running elbow and
+shoulder together is electrically unremarkable — but three simultaneous paths
+through one limb means a fast whole-arm movement a blindfolded subject cannot
+anticipate, and triples the charge delivered per unit time. Grip is exempt: it
+is on its own bank of the second unit, and a grasp that let go whenever the arm
+moved would defeat the point of treating the hand as an end-effector.
+
+### What was tried first, and why it was wrong
+
+An earlier version forbade the **shoulder and elbow** from firing in the same
+instant. It was the wrong rule twice over: it blocked two *isolated* channels,
+which bought no electrical safety, and it cost real speed.
+
+| | time to reach both targets |
+|---|---|
+| joint-based exclusion | 1.4 s |
+| **same-bank refusal + cap of 2** | **0.5 s** |
+
+The lesson worth keeping: derive the constraint from the electrical topology,
+not from the anatomy. The hazard lives in the wiring.
+
+### Time-slicing, for when the cap does bite
+
+Exceeding the cap does not refuse the extra channels, it rotates them: each PWM
+period belongs to one subset. At 150 ms that is ~3.3 Hz against a limb bandwidth
+under 1 Hz, so the arm integrates the average.
+
+A rotating channel owns only 1/N of the wall clock and would deliver 1/N of the
+force, and **the integrator cannot recover that** — it is already saturated
+holding the limb against gravity. So the in-slot duty is scaled by N. The
+ceiling exists to bound charge over time, and that is the time-average:
+
+```
+average = min(1.0, wanted × N) / N  ≤  wanted  ≤  DUTY_MAX
+```
+
+which cannot exceed the average the channel would have received with no rotation
+at all. With two joints moving, N is 1 and the scaling vanishes entirely.
+
+### Grip is the one channel allowed duty 1.0
+
+Every other channel is servoed, so duty is its force knob and `DUTY_MAX` keeps a
+margin. Grip is triggered — the hand is an end-effector with two useful states,
+and a half-closed grasp is a hand that drops the object. `CH7`/`CH8` therefore
+have their own ceiling in `firmware/config/settings.py` (`CHANNEL_DUTY_MAX`),
+and the firmware refuses anything above `DUTY_MAX` for every channel not on that
+list.
+
+**`MAX_BURST_MS` still applies.** A held grasp releases after 4 s and needs 2 s
+of rest, so you cannot hold an object indefinitely. That limit stays because the
+finger flexors are the smallest muscles on the arm and fatigue fastest.
+
+## Pose noise: measure it, do not guess
+
+Vision output is noisy, and the deadband must **exceed** that noise or the
+controller chases jitter. Measure before tuning:
+
+`run.py` binds the pose port, so it cannot be running at the same time. Use the
+**pose-only** mode, which starts the vision side without the controller:
+
+```cmd
+:: terminal 1 - vision + 3D twin, UDP 9090 left free. Leave this window open;
+:: the twin opens in your browser so you can see the posture being held.
+py tools\launch.py --pose-only
+
+:: terminal 2 - activate the venv first
+cd C:\Users\faisa\Desktop\juno_hack
+.venv\Scripts\activate
+py tools\pose_noise.py
+```
+
+Subject holds ONE still posture for the whole run; everything that moves is
+noise. It reports per-joint standard deviation, outlier structure, peak implied
+velocity, per-axis landmark noise, and models the **real** filter chain
+(median then one-euro) on your data.
+
+Each capture is written to `pose_capture.json` — **landmarks as well as
+angles** — so filter settings can be re-evaluated without asking anyone to sit
+still again:
+
+```cmd
+py tools\pose_noise.py --replay --median 9 --mincutoff 0.10 --beta 0.005
+```
+
+Label captures to compare physical setups instead of overwriting them:
+
+```cmd
+py tools\pose_noise.py --label frontOn
+:: turn the subject or camera ~45 deg, hold the SAME posture, then
+py tools\pose_noise.py --label camera45
+```
+
+### Read the "character" column before touching any filter
+
+The tool classifies each joint as **white noise**, **mixed**, or
+**DRIFT/MOVE**, by comparing the spread of frame-to-frame *differences*
+against the spread of the signal itself. Independent samples make the
+differences √2 times as wide as the signal; a slow wander makes them far
+narrower.
+
+This matters because **a low-pass filter can only remove the white part.** If a
+joint reads `DRIFT/MOVE`, either the subject moved during the capture or the
+estimator is drifting, and no amount of filtering will help — no cutoff value
+removes it.
+
+### A large recommended deadband is a measurement problem, not a setting
+
+**You do not paste the recommended deadband into `settings.py`** — the
+controller sizes its own from live noise (see below). Read it instead as a
+score for your camera setup.
+
+A deadband is dead travel: the controller ignores errors smaller than it, so the
+arm stops that far short of every target. A 13° elbow deadband would mean an arm
+that visibly never arrives. When the tool recommends something that large, fix
+the measurement rather than accepting it.
+
+The tool also prints **per-axis landmark noise**, which settles the question
+directly: if the depth axis is more than ~1.5x the in-plane axes, the camera
+angle is your problem and no filter competes with fixing it.
+
+**When the elbow is the worst joint, suspect camera geometry first.** Elbow
+angle is computed from the **wrist** landmark, and with a front-on camera elbow
+flexion swings the forearm *toward the lens* — the depth axis, which is where
+MediaPipe is weakest by a wide margin. Shoulder abduction, by contrast, is a
+sideways in-plane motion, which is why it usually measures far quieter. So a
+capture where abduction is quiet and the elbow is wild is a geometry signature,
+not a filtering problem.
+
+Cheap fixes, roughly in order of value per minute spent:
+
+| Fix | Why it works |
+|---|---|
+| Turn the subject or camera **~45°** (three-quarter view) | Puts elbow flexion back in the image plane, where x/y landmarks are good. Costs nothing and can beat any filter. |
+| Make sure the **whole forearm and hand** stay in frame | A wrist landmark that is clipped or occluded is guessed, not measured. |
+| More light, plain background | Landmark confidence drops fast in dim or cluttered scenes. |
+| Move the camera **back** and zoom in | Reduces perspective foreshortening along the depth axis. |
+| Long sleeves off, contrasting clothing | Helps the estimator find the limb at all. |
+
+Re-run the capture after each change and compare — that is the point of saving
+`pose_capture.json`.
+
+### Two-stage filter, because vision noise is two problems
+
+| Noise | Looks like | Handled by |
+|---|---|---|
+| **Landmark jumps** | occasional large outliers | **median window** (`POSE_MEDIAN_WINDOW`) |
+| **Jitter** | small, every frame | **adaptive low-pass** (`POSE_ONEEURO_*`) |
+
+Order matters — median **first**. The adaptive stage reads a large fast change
+as genuine motion and speeds up to follow it, so an outlier reaching it before
+the median gets passed through rather than rejected.
+
+### When outliers come in bursts, no filter helps
+
+A median window rejects an outlier only while it is a **minority** of that
+window. Median-5 handles one or two bad samples; a run of six *becomes* the
+median and passes through as if it were signal.
+
+A real capture showed exactly that on shoulder abduction — bursts up to 6
+consecutive samples, single-frame steps of ~1000 °/s while the subject was
+deliberately motionless, and only 43% noise reduction where the other joints
+got ~60%. Those are **tracking dropouts**, roughly 200 ms each, where MediaPipe
+briefly mis-locates the landmark. Both elbow and abduction excursed in the same
+frames, which is what identifies it as a shared-landmark failure rather than
+per-joint noise.
+
+`pose_noise.py` reports the `burst` and `peak` columns for this. Two responses,
+in order:
+
+1. **Stop the estimator emitting them.** axon-main returns *no* landmarks below
+   `MIN_LANDMARK_VISIBILITY` rather than a low-confidence guess — but the
+   default 0.5 is permissive enough to let these through. Raise it:
+
+   ```cmd
+   py tools\launch.py --min-visibility 0.7
+   ```
+
+   This trades tracking coverage for correctness, which is the right trade
+   here: a dropped frame ages out after `POSE_STALE_MS` and **stops
+   stimulation**, whereas a confidently wrong frame gets acted upon.
+
+2. **Cap the damage from what still gets through.** `POSE_MAX_RATE_DEG_S`
+   (400 °/s) limits how far one sample can move a joint. It *limits* rather
+   than discards, deliberately — the discard-and-hold version was measured and
+   made the elbow **worse** (sd 1.42 → 2.33), because a genuine fast change is
+   held for the whole retry window and then snaps, which is a bigger deviation
+   than the noise it replaced. Limiting also guarantees convergence: if the
+   estimator switches which arm it tracks, a rejecting gate would freeze the
+   pose forever.
+
+Physical causes worth ruling out first: arm resting against the torso (the
+classic MediaPipe confusion), clothing that matches the background, dim light,
+motion blur.
+
+### Why the second stage is adaptive, not a fixed alpha
+
+A fixed exponential filter has one constant asked to do two incompatible jobs.
+Holding still, we want heavy smoothing, because the deadband must exceed the
+residual noise. Moving, we want almost none, because lag here adds to a loop
+already 150–300 ms slow. One alpha can only compromise.
+
+The **one-euro filter** (Casiez, Roussel & Vogel, CHI 2012) makes the cutoff a
+function of the signal's own speed: barely moving → cutoff drops and it smooths
+hard; moving → cutoff rises and it gets out of the way. Since "still" and
+"moving" are exactly when the two behaviours are wanted, the trade-off
+dissolves rather than being split.
+
+Measured on a real 553-sample held-posture capture at 27.6 Hz (elbow):
+
+| Filter | sd | step lag | deadband it needs |
+|---|---|---|---|
+| raw | 2.51° | 0 ms | 7.5° |
+| median-5 + EMA 0.35 *(previous)* | 1.70° | 145 ms | 5.0° |
+| median-5 + EMA 0.10 | 1.14° | 398 ms | 3.5° |
+| median-5 + one-euro 0.15/0.005 | 1.06° | 181 ms | 3.0° |
+| **median-9 + one-euro 0.10/0.005** *(current)* | **best of the above on the noisiest capture** | **292 ms** | sized live |
+
+The fixed filter could reach that noise level only by paying 398 ms of lag —
+more than the rest of the loop combined. Set `POSE_FILTER_MODE = "ema"` to
+restore the old behaviour.
+
+**Tuning order:** set `POSE_ONEEURO_BETA = 0` and lower `POSE_ONEEURO_MINCUTOFF`
+until a held posture is quiet enough, then raise `beta` until movement stops
+feeling delayed. Check both against a saved capture rather than a person:
+
+```cmd
+py tools\pose_noise.py --replay --mincutoff 0.15 --beta 0.005
+```
+
+### The deadband is a fixed 3°, and noise is reported rather than acted on
+
+An earlier version widened the deadband automatically to whatever the live pose
+noise required. **That was wrong, and measurement is what showed it.**
+
+The premise was "the deadband must exceed the noise or the controller chases
+jitter". True when the controller collapsed its output to zero inside the band;
+false once it started *holding* its learned duty there instead (see above).
+Counting relay transitions over 25 s at the setpoint, with real noise injected:
+
+| deadband | 0.5° | 1° | 2° | 3° | 5° | 8° | 12° |
+|---|---|---|---|---|---|---|---|
+| relay switches | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| steady error | 0.3° | 0.3° | 0.3° | 0.2° | 2.0° | 4.2° | 7.6° |
+
+Zero chatter at every width, at both a quiet (1.1°) and a noisy (2.6°) feed.
+Widening bought nothing and cost accuracy — and at 12° the arm never settled at
+all, so every keypress smaller than the band appeared to do nothing. That is
+what made the controls feel dead.
+
+**The noise measurement is still taken and still reported.** It is a genuinely
+useful early warning that the camera setup is drifting; it just no longer
+silently changes how the arm behaves. `run.py` shows `noise:e4` when measured
+noise exceeds a joint's deadband — the arm will hunt around its target rather
+than sit on it, and the fix is the camera, not the gains.
+
+Set `DEADBAND_ADAPTIVE = True` to restore the old behaviour if a rig ever does
+chatter. It is capped at `DEADBAND_MAX_DEG = 6.0`, lowered from 12 because the
+table above shows the arm stops settling well before that.
+
+Two details that matter more than they look:
+
+- **It measures the FILTERED stream, not the raw one.** The deadband exists to
+  stop the controller reacting to what survives filtering. On real data raw
+  noise was 5.2° where the filtered residual was 2.3°, so sizing from raw would
+  have doubled the deadband for nothing.
+- **It only updates while the joint is nearly still** (< 15 °/s). The baseline
+  it measures against lags real movement, so during a commanded move the
+  residual reflects filter lag rather than noise — feeding that in would widen
+  the deadband exactly when the arm is trying to travel, and it would stop
+  short of every target it was moving toward. Stillness is also when the
+  deadband governs behaviour, so it is the right time to measure.
+
+`run.py` shows `db:e5` **only when the deadband has risen above its floor**. If
+that appears, the pose feed has degraded and the arm will settle further short
+of its targets — which otherwise looks like weak gains and gets mis-debugged.
+
+Ceiling is `DEADBAND_MAX_DEG = 12.0`: past that the feed is broken badly enough
+that the operator should be told, not quietly accommodated by an arm that
+ignores its targets.
+
+### The twin's jitter and the controller's noise are separate paths
+
+The 3D twin receives raw landmarks over its own WebSocket straight from
+axon-main and smooths them itself for display; the controller receives the same
+landmarks over UDP and filters its own copy. **Neither filter affects the
+other.** So a visibly smoother twin does not mean cleaner control values, and
+`pose_noise.py` is the only thing that tells you about the numbers actually
+driving stimulation.
+
+`twin.html` uses the same adaptive idea, expressed as a smoothing *rate* rather
+than a cutoff (`POSE_SMOOTHING_MIN_RATE`, `POSE_SMOOTHING_BETA`). It is display
+only — changing it cannot affect what the arm is told to do. Set
+`POSE_ADAPTIVE_SMOOTHING = false` there to go back to the fixed rate.
+
+An exponential filter *cannot* reject an outlier — it smears one across several
+frames, which is worse for control than the spike itself, because the error
+persists. A median window discards it outright: a single bad sample can never be
+the median of an odd-sized window.
+
+Measured on a simulated feed (1.2° jitter + a 25° jump every 37 frames):
+
+| Filter | steady-state sd | worst error from a jump | frames to recover |
+|---|---|---|---|
+| raw | 4.36° | 26.3° | — |
+| EMA only | 2.02° | 9.7° | 4 |
+| **median + EMA** | **0.52°** | **1.5°** | **0** |
+
+Cost is lag: the median adds about half its window (~35 ms at 28 Hz with n=5),
+on top of the exponential stage. Acceptable here because the loop bandwidth is
+only ~0.5–1 Hz. Keep the window **odd** and **small**.
+
 ### How to choose the deadband on hardware
 
 Because the hold fix removed the chatter, the deadband can now be much tighter

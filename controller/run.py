@@ -1,8 +1,8 @@
 """Teleoperation entrypoint.
 
-    Arrow keys  - move the hand:
-                    LEFT / RIGHT  -> shoulder abduction (hand out / in)
-                    UP   / DOWN   -> raise / lower the hand (shoulder + elbow)
+    UP   / DOWN  - raise / lower the arm   (middle deltoid; gravity lowers)
+    LEFT / RIGHT - swing forward / back     (anterior / posterior deltoid)
+    W    / S     - bend / straighten elbow  (biceps / triceps)
     G           - toggle GRIP open/closed
     A           - ARM   (stimulation enabled)
     D           - DISARM
@@ -15,7 +15,7 @@
 Run modes (activate the venv first; on Windows use `py` if your system does not
 recognise `python`):
     python run.py                        # auto-discover the board
-    python run.py --host 192.168.137.154 # skip discovery (firewall-proof)
+    python run.py --host 192.168.137.131 # skip discovery (firewall-proof)
     python run.py --sim                  # simulated arm + no board; dry run
     python run.py --sim-hw               # simulated arm DRIVING REAL RELAYS
     python run.py --no-board             # real pose input, nothing stimulated
@@ -98,6 +98,28 @@ class KeyReader:
 
 
 # ---------------------------------------------------------------------------
+def _deadband_field(s):
+    """'noise:e4' when measured pose noise exceeds a joint's deadband.
+
+    This USED to report a widened deadband. It no longer widens - measurement
+    showed that bought no chatter reduction and cost real accuracy - so what is
+    worth surfacing is the underlying condition instead: the pose feed has got
+    noisy enough that the arm will hunt around its target rather than sit on it.
+
+    Silent when everything is within band, because a value that never changes is
+    clutter on an already-crowded line. When it appears, the fix is the camera
+    (see docs/CONTROL.md), not the gains.
+    """
+    noise = s.get("pose_noise")
+    if not noise:
+        return ""
+    over = {j: v for j, v in noise.items()
+            if v > C.GAINS.get(j, (0, 0, 3.0, 0))[2]}
+    if not over:
+        return ""
+    return "noise:" + "/".join("%s%.0f" % (j[0], v) for j, v in sorted(over.items()))
+
+
 def build(args):
     if args.sim_hw:
         # HARDWARE-IN-THE-LOOP: the virtual arm closes the control loop, but the
@@ -133,17 +155,25 @@ HELP = """
 |    A            ARM  - enable stimulation (nothing moves until you do)   |
 |    D            disarm                                                   |
 |    X            EMERGENCY STOP (latched - press A to re-arm)             |
-|    UP / DOWN    raise / lower the hand   (shoulder flex + elbow)         |
-|    RIGHT        hand OUT to the side     (abduction, 0-90 deg)           |
-|    LEFT         hand back IN toward body (only works if abd > 0)         |
-|    G            toggle GRIP  (it is 'G', NOT Shift)                      |
+|                                                                          |
+|  ONE AXIS PER KEY PAIR - each drives exactly one muscle pair             |
+|    UP           raise the arm     CH5 MIDDLE deltoid       (0-90 deg)    |
+|    DOWN         lower the arm     no muscle - GRAVITY does it, so this   |
+|                                   only works if the arm is already up    |
+|    LEFT         swing FORWARD     CH3 ANTERIOR deltoid                   |
+|    RIGHT        swing BACK        CH4 POSTERIOR deltoid                  |
+|    W            bend the elbow    CH1 BICEPS                             |
+|    S            straighten it     CH2 TRICEPS                            |
+|    G            toggle GRIP  (it is 'G', NOT Shift)   CH7 finger flexors |
 |    ?            show this help again                                     |
 |    Q            quit                                                     |
 |                                                                          |
 |  READING THE STATUS LINE (compact, fits your terminal width)             |
 |    [ARM]/[DIS]/[KIL]   armed / disarmed / e-stopped                      |
 |    e45/60 f10/30 a0/15  joint = ACTUAL/TARGET in degrees                 |
-|         e = elbow, f = shoulder flexion, a = shoulder abduction          |
+|         e = elbow (W/S)                                                  |
+|         f = forward-back, + is forward (LEFT/RIGHT)                      |
+|         a = elevation, how high the arm is (UP/DOWN)                     |
 |    g:C / g:-           grip closed / open                                |
 |    CH1:0.70 ...        channels firing and their duty. 'idle' = nothing. |
 |                                                                          |
@@ -224,6 +254,7 @@ def render(ctl, sim_mode, hw=False):
             bd = "bd:ok"
 
     # ---- build the line in PRIORITY order, then fit it to the terminal ----
+    # (see _deadband_field below for why the deadband is only sometimes shown)
     # The window is often ~80 columns, and a fixed verbose layout simply gets
     # chopped - losing whichever field happens to sit at the end, which is
     # exactly when you need it. So: emit compact fields, most diagnostic first,
@@ -237,6 +268,9 @@ def render(ctl, sim_mode, hw=False):
         ("f%.0f/%.0f" % (m["shoulder_flex"], tg["shoulder_flex"]), 1),
         ("a%.0f/%.0f" % (m["shoulder_abd"], tg["shoulder_abd"]), 4),
         ("g:%s" % ("C" if s["grip"] else "-"), 5),
+        # Only worth screen space once it has risen above the configured floor:
+        # at the floor it says nothing, above it the pose feed is degrading.
+        (_deadband_field(s), 3),
         (mapping.describe(s["duties"]), 2),
         (why.strip(), 1),                             # the "why nothing moves" hint
     ]
@@ -263,7 +297,7 @@ def main():
     ap.add_argument("--no-board", action="store_true",
                     help="use real pose input but do not drive the board")
     ap.add_argument("--host", default=None,
-                    help="board IP, e.g. 192.168.137.154. Default: auto-discover "
+                    help="board IP, e.g. 192.168.137.131. Default: auto-discover "
                          "(needs inbound UDP through the firewall)")
     args = ap.parse_args()
 
@@ -313,20 +347,40 @@ def main():
                     # so a held grip is not detectable. Press G again to open.
                     ctl.set_grip(not ctl.grip)
                     say("[G] grip %s" % ("CLOSED" if ctl.grip else "open"))
+                # ---- one axis per key pair, matching the electrode layout ----
+                # Previously UP/DOWN drove shoulder_flex AND the elbow together
+                # as a compound "raise the hand" gesture, and abduction sat on
+                # LEFT/RIGHT. That did not match how the pads are actually
+                # placed: the MIDDLE deltoid is what lifts the arm, and the
+                # anterior/posterior pair swings it forward and back. Pressing
+                # UP therefore fired the anterior deltoid and pushed the arm
+                # FORWARD rather than up.
+                #
+                # Now each key pair drives exactly one axis, and each axis has
+                # exactly one muscle pair:
+                #   UP/DOWN    elevation      CH5 middle deltoid / gravity
+                #   LEFT/RIGHT forward-back   CH3 anterior / CH4 posterior
+                #   W/S        elbow          CH1 biceps / CH2 triceps
                 elif key == "UP":
-                    a = ctl.jog("shoulder_flex", C.JOG_STEP_DEG)
-                    b = ctl.jog("elbow", C.JOG_STEP_DEG * 0.5)
-                    jogged, jog_joint, jog_moved = True, "shoulder_flex", (a or b)
-                elif key == "DOWN":
-                    a = ctl.jog("shoulder_flex", -C.JOG_STEP_DEG)
-                    b = ctl.jog("elbow", -C.JOG_STEP_DEG * 0.5)
-                    jogged, jog_joint, jog_moved = True, "shoulder_flex", (a or b)
-                elif key == "RIGHT":
                     jog_moved = ctl.jog("shoulder_abd", C.JOG_STEP_DEG)
                     jogged, jog_joint = True, "shoulder_abd"
-                elif key == "LEFT":
+                elif key == "DOWN":
+                    # No adductor channel exists - the arm comes down under its
+                    # own weight, so this only lowers a raised arm.
                     jog_moved = ctl.jog("shoulder_abd", -C.JOG_STEP_DEG)
                     jogged, jog_joint = True, "shoulder_abd"
+                elif key == "LEFT":
+                    jog_moved = ctl.jog("shoulder_flex", C.JOG_STEP_DEG)
+                    jogged, jog_joint = True, "shoulder_flex"
+                elif key == "RIGHT":
+                    jog_moved = ctl.jog("shoulder_flex", -C.JOG_STEP_DEG)
+                    jogged, jog_joint = True, "shoulder_flex"
+                elif key == "W":
+                    jog_moved = ctl.jog("elbow", C.JOG_STEP_DEG)
+                    jogged, jog_joint = True, "elbow"
+                elif key == "S":
+                    jog_moved = ctl.jog("elbow", -C.JOG_STEP_DEG)
+                    jogged, jog_joint = True, "elbow"
 
                 # A keypress that appears to do nothing is the most confusing
                 # thing about this UI, so name the reason. Three distinct cases:

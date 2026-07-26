@@ -5,7 +5,12 @@
 # nothing to install to run the control loop or the bench tools.
 #
 # These packages are for flashing and talking to the ESP32-S3:
-esptool>=4.7          # one-time USB flash of MicroPython
+# esptool v5 renamed every command and option from underscores to hyphens
+# (erase_flash -> erase-flash, write_flash -> write-flash, --flash_size ->
+# --flash-size, and so on). Our docs use the v5 spelling, which FAILS on v4 -
+# so this is a hard floor, not a preference. The old names still work on v5
+# with a deprecation warning, so pinning forward is the safe direction.
+esptool>=5.0          # one-time USB flash of MicroPython
 mpremote>=1.22        # one-time file copy + serial REPL
 
 # Python 3.8 or newer.

@@ -55,12 +55,23 @@ def _apply_deadzone(duty, min_effective, enabled):
 
 
 def efforts_to_duties(efforts, grip=False, release=False, duty_max=0.70,
-                      min_effective=0.0, deadzone=False):
+                      min_effective=0.0, deadzone=False, grip_duty=None):
     """Convert signed per-joint efforts into a duty vector for the 8 channels.
 
     efforts: {"elbow": +0.4, "shoulder_flex": -0.2, ...}
              positive = increase the angle (agonist)
              negative = decrease the angle (antagonist, or gravity if none)
+
+    grip_duty exists because grip is the one channel that is NOT servoed. The
+    arm joints modulate duty to place a limb, so duty is their force knob and
+    duty_max keeps a margin. The hand is an end-effector with two useful states,
+    and a half-closed grasp is just a hand that drops the object, so it runs at a
+    higher ceiling. Defaults to duty_max if not given, so an old caller cannot
+    accidentally obtain the higher value.
+
+    The board clamps this again either way (firmware settings.CHANNEL_DUTY_MAX),
+    and will refuse anything above DUTY_MAX for a channel not on its exempt
+    list. Nothing here is trusted.
     """
     duties = {ch: 0.0 for ch in CHANNEL_ORDER}
 
@@ -74,11 +85,12 @@ def efforts_to_duties(efforts, grip=False, release=False, duty_max=0.70,
                 min(-effort, duty_max), min_effective, deadzone)
         # effort < 0 with no antagonist -> leave both at 0 and let gravity work
 
+    gd = duty_max if grip_duty is None else float(grip_duty)
     if grip:
-        duties[GRIP_CLOSE] = duty_max
+        duties[GRIP_CLOSE] = gd
         duties[GRIP_RELEASE] = 0.0
     elif release:
-        duties[GRIP_RELEASE] = duty_max
+        duties[GRIP_RELEASE] = gd
         duties[GRIP_CLOSE] = 0.0
 
     return duties

@@ -70,20 +70,71 @@ would defeat both. Keeping their driver in mock mode is the simplest guarantee.
 
 ---
 
-## Their note on our filter constant — accepted, not yet changed
+## Their note on our filter constant — acted on
 
 They flagged that `POSE_FILTER_ALPHA = 0.35` was tuned without a known sample
-rate. At their measured 28 Hz it gives a time constant of ~83 ms (~250 ms to
-settle), which sits on top of our existing 150–300 ms loop delay.
+rate. Correct, and it has since been measured and replaced.
 
-We are leaving it for now because our closed-loop bandwidth is only ~0.5–1 Hz
-and settling already takes seconds, so ~83 ms is not the limiting term. It is
-worth revisiting **after** we measure real pose noise on the rig: the deadband
-(3°) must exceed that noise, and filtering and deadband trade against each other.
-See `CONTROL.md`.
+The receiver now derives the sample rate from arrival times rather than assuming
+one, and the fixed exponential filter is gone. The chain is a rate gate, then a
+median window, then a **one-euro** adaptive low-pass whose cutoff tracks the
+signal's own speed — so it smooths hard while the arm is held and opens up while
+it moves, instead of compromising between the two. On a real capture that gave
+the same lag as the old filter for a third less noise.
 
-Since they send **raw** positions, our filtering is doing real work and should
-not simply be switched off.
+The deadband is no longer a constant either. Repeated captures on the same rig
+gave elbow noise between 2.5° and 10.9°, so the controller measures the residual
+noise live and sizes its deadband from that. Full detail in `CONTROL.md`.
+
+**Please keep sending raw positions.** If their side pre-smooths, our noise
+measurement reports their filter's output rather than the estimator's real
+quality, and the deadband gets sized from a number that no longer means
+anything.
+
+### One config lever we may ask them for
+
+`MIN_LANDMARK_VISIBILITY` is now readable from the environment (their default of
+0.5 is unchanged). A capture showed ~13 episodes of roughly 200 ms where
+landmarks had wandered but still scored above 0.5, appearing downstream as 25–45°
+abduction excursions on a motionless subject. `tools/launch.py --min-visibility
+0.7` raises it for a session. Dropping those frames is safer than filtering
+them: a dropped frame ages out and stops stimulation, a confidently wrong one is
+acted upon.
+
+---
+
+## Dependencies
+
+Two separate environments. **Ours needs nothing new** — the controller is
+standard-library only, and `requirements.txt` (esptool, mpremote) is already
+installed for the board work.
+
+**axon-main needs:**
+
+| What | Notes |
+|---|---|
+| **`uv`** | Astral's package manager. `winget install astral-sh.uv` |
+| Python **3.14** | `uv` fetches it automatically |
+| mediapipe, opencv, fastapi, uvicorn, numpy, websockets | `uv sync` from their `uv.lock` |
+| **the pose model file** | `models/pose_landmarker_lite.task` — **gitignored, not in the repo** |
+| A webcam | 640×480@30fps is what they measured (~28 Hz output) |
+
+That model file is the one that catches people: it is downloaded, not
+committed, so a fresh clone fails at import with an unhelpful error.
+
+**`tools/launch.py` does all of this for you on first run** — it runs `uv sync`,
+downloads the model, then starts everything. Expect the first run to take
+several minutes (mediapipe is a large download); afterwards it is instant.
+
+To do it by hand instead:
+
+```cmd
+cd C:\Users\faisa\Desktop\juno_hack\axon-main
+uv sync
+uv run python scripts/download_pose_model.py
+```
+
+Then `python tools\launch.py --skip-setup ...` to skip the checks.
 
 ---
 
@@ -96,8 +147,38 @@ to the controller, and shuts the pose service down when you quit.
 cd C:\Users\faisa\Desktop\juno_hack
 
 python tools\launch.py --no-board                        :: 1. dry run, nothing stimulated
-python tools\launch.py --host 192.168.137.154            :: 2. full system
+python tools\launch.py --host 192.168.137.131            :: 2. full system
 ```
+
+This also serves the **3D digital twin**. Once running, open:
+
+| | |
+|---|---|
+| **3D twin** | <http://127.0.0.1:8081/twin.html> |
+| **Camera preview** | <http://127.0.0.1:8000/camera.mjpeg> |
+
+**The twin opens in your browser automatically.** Pass `--no-open` to suppress
+that (the URL is still printed).
+
+> **The pose service itself is headless — no window ever appears.** It captures,
+> runs MediaPipe and emits UDP silently. The twin is a separate static page that
+> connects back to it over `ws://127.0.0.1:8000/ws`, and it must be **served over
+> HTTP** — opening `twin.html` as a file fails, because browsers block the
+> `fetch()` calls it uses to load the muscle meshes.
+
+**Stopping it: press `Q` in the launcher's terminal.** The browser is only a
+viewer — closing tabs leaves the pose service and file server running. If the
+launcher window was closed abruptly:
+
+```cmd
+python tools\stop.py -n     :: list leftovers (8000 / 8081 / 9090)
+python tools\stop.py        :: stop them
+```
+
+The launcher kills the whole process **tree** on exit. That matters because
+`uv run uvicorn` starts uvicorn as a *child* of uv — terminating only uv would
+orphan uvicorn, which keeps the webcam and port 8000 locked and makes the next
+launch fail.
 
 Useful variants:
 
@@ -105,6 +186,10 @@ Useful variants:
 python tools\launch.py --sim                  :: virtual arm, no pose service, no board
 python tools\launch.py --sim-hw --host <ip>   :: virtual arm, REAL relays
 python tools\launch.py --no-pose --host <ip>  :: pose service already running elsewhere
+python tools\launch.py --no-open --no-board   :: do not open the browser for me
+python tools\launch.py --no-frontend ...      :: skip the 3D twin server entirely
+python tools\launch.py --pose-only            :: vision + twin, no controller
+                                              ::   (frees UDP 9090 for pose_noise.py)
 python tools\launch.py --host <ip> --verbose  :: show the pose service's own log
 ```
 
@@ -149,7 +234,7 @@ stop sending, and we stop driving.
 **Then, with the board:**
 
 ```cmd
-python run.py --host 192.168.137.154
+python run.py --host 192.168.137.131
 ```
 
 Press `A` to arm. Everything in `SAFETY.md` applies from this point.

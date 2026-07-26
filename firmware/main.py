@@ -9,6 +9,7 @@
 
 from lib.hal import ticks_ms, ticks_diff, sleep_ms, platform_name
 from lib.safety import SafetySupervisor
+from lib.status_led import StatusLED
 from lib.stim_array import StimArray
 from lib import net_udp
 from config import settings as S
@@ -100,6 +101,10 @@ def run():
     )
     array = StimArray(safety)
     estop_pin = attach_estop(array, safety)
+
+    # On-board indicator. Constructed AFTER the array, so if the LED is
+    # missing or miswired the relays have already been forced safe first.
+    led = StatusLED(P.NEOPIXEL_PIN, enabled=S.STATUS_LED_ENABLED)
 
     wifi, ip = get_network()
     token = None
@@ -196,7 +201,21 @@ def run():
             # at the control path.
             st["timer_presses"] = array._timer_presses
             st["cocontract_blocks"] = array._cocontraction_blocks
+            st["board"] = P.BOARD
             link.send_status(st)
+
+        # ---- 3b. reflect state on the on-board LED ------------------------
+        # Driven from the SAME facts the heartbeat reports, so the light can
+        # never disagree with what the PC is being told. Updated every pass
+        # rather than every status interval, because a blink at the status
+        # rate (250 ms) would alias into something unreadable.
+        led.from_state(
+            armed=safety.stim_allowed(),
+            killed=safety.is_killed(),
+            stimulating=array.any_on(),
+            link_ok=not safety.watchdog_expired(now),
+        )
+        led.tick(now)
 
         # ---- 4. YIELD -----------------------------------------------------
         # Without this the loop is a tight spin that starves everything else on

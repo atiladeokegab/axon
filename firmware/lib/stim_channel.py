@@ -55,6 +55,29 @@ class StimChannel:
             self._active_since = None
         return self._duty
 
+    def restart_cycle(self, now=None):
+        """Begin a fresh PWM period right now, latching the current duty.
+
+        Needed by the exclusive-group scheduler. `_on_ms` is normally latched
+        only when a period rolls over, and each channel's period free-runs from
+        whenever it was constructed - so a channel that has just been granted a
+        time slice would otherwise carry the `_on_ms = 0` it latched while it
+        was masked, and sit idle for most of the slot it just won. Measured
+        before this existed, a channel commanded 0.60 delivered a 0.05 average.
+
+        MUST ONLY BE CALLED ON AN ACTUAL SLOT CHANGE. Calling it repeatedly
+        (for example from apply(), which arrives at 30 Hz) would restart the
+        period faster than it can elapse, so `elapsed` would never reach
+        `_on_ms` and the relay would stay closed continuously - a silent jump to
+        100% duty on every channel.
+        """
+        if now is None:
+            now = ticks_ms()
+        self._cycle_start = now
+        self._on_ms = int(self._duty * self._period_ms)
+        if self._on_ms < self._min_pulse_ms:
+            self._on_ms = 0
+
     def off(self):
         """Immediately de-energise (e-stop / watchdog / cooldown)."""
         self._pin.value(self._off_level)

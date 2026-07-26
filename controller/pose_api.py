@@ -26,10 +26,12 @@ DESIGN NOTES
 """
 
 import json
+import math
 import socket
 import threading
 import time
 
+from filters import JointFilter
 from kinematics import joints_from_pose
 import settings as C
 
@@ -39,11 +41,37 @@ class PoseReceiver:
 
     JOINTS = ("elbow", "shoulder_flex", "shoulder_abd")
 
-    def __init__(self, host=None, port=None, alpha=None, stale_ms=None):
+    def __init__(self, host=None, port=None, alpha=None, stale_ms=None,
+                 median_n=None, mode=None, mincutoff=None, beta=None):
         self.host = host or C.POSE_LISTEN_HOST
         self.port = port or C.POSE_LISTEN_PORT
         self.alpha = C.POSE_FILTER_ALPHA if alpha is None else alpha
         self.stale_ms = C.POSE_STALE_MS if stale_ms is None else stale_ms
+        # Odd window, so the median is always an actual sample.
+        self.median_n = getattr(C, "POSE_MEDIAN_WINDOW", 5) if median_n is None else median_n
+        self.mode = getattr(C, "POSE_FILTER_MODE", "oneeuro") if mode is None else mode
+        self.mincutoff = (getattr(C, "POSE_ONEEURO_MINCUTOFF", 0.25)
+                          if mincutoff is None else mincutoff)
+        self.beta = getattr(C, "POSE_ONEEURO_BETA", 0.005) if beta is None else beta
+
+        # The one-euro filter needs the sample rate, and the estimator's rate is
+        # not a constant we can assume - it depends on the camera and the
+        # machine. So it is measured from arrival times and fed in per sample.
+        self._rate_hz = 28.0
+        # Live noise estimate, per joint. Measured continuously rather than
+        # configured, because the same rig produced elbow noise of 2.5 deg and
+        # 7.3 deg on different days - lighting, posture and distance move it by
+        # 3x, so any constant baked in here is wrong most of the time.
+        self._d1 = {j: 0.0 for j in self.JOINTS}    # EWMA of the difference
+        self._d2 = {j: 0.0 for j in self.JOINTS}    # EWMA of its square
+        self._prev_raw = {}
+        self._baseline = {}
+        self._filters = {
+            j: JointFilter(self._rate_hz, self.median_n, self.mincutoff,
+                           self.beta, mode=self.mode, alpha=self.alpha,
+                           max_deg_per_s=getattr(C, "POSE_MAX_RATE_DEG_S", 400.0))
+            for j in self.JOINTS
+        }
 
         self._lock = threading.Lock()
         self._filtered = None       # dict of joint -> deg
@@ -144,16 +172,101 @@ class PoseReceiver:
                                 tuple(map(float, w)))
 
     def _ingest(self, joints):
+        """Median prefilter, then an adaptive low-pass. See filters.py.
+
+        Vision noise is two different problems and one filter cannot handle
+        both:
+
+          * landmark JUMPS     - occasional large outliers when the estimator
+            briefly mis-locates a joint. A low-pass filter cannot reject these;
+            it smears one across several frames, which is worse for control
+            than the spike itself because the error then persists. The MEDIAN
+            stage discards them outright.
+          * continuous jitter  - small, every frame. Handled by the second
+            stage, which by default is a one-euro filter rather than a fixed
+            exponential: it smooths hard while the arm is still and opens up
+            while it moves, instead of compromising between the two.
+
+        Order matters - median first. The one-euro stage reads a large fast
+        change as genuine motion and speeds up to follow it, so an outlier
+        arriving before the median would be passed through, not rejected.
+        """
+        now = time.monotonic()
         with self._lock:
             self._raw = joints
+
+            # Track the estimator's actual rate; the one-euro filter's cutoffs
+            # are in Hz and so are meaningless without it. Smoothed, because a
+            # single late datagram should not distort the filter.
+            if self._last_rx:
+                dt = now - self._last_rx
+                if 0.002 < dt < 1.0:
+                    inst = 1.0 / dt
+                    self._rate_hz = 0.1 * inst + 0.9 * self._rate_hz
+
             if self._filtered is None:
-                self._filtered = dict(joints)
-            else:
-                a = self.alpha
-                for j in self.JOINTS:
-                    self._filtered[j] = a * joints[j] + (1 - a) * self._filtered[j]
-            self._last_rx = time.monotonic()
+                self._filtered = {}
+            for j in self.JOINTS:
+                self._filtered[j] = self._filters[j](joints[j], self._rate_hz)
+                self._track_noise(j, self._filtered[j])
+
+            self._last_rx = now
             self._count += 1
+
+    # ---- live noise estimate ----------------------------------------------
+    NOISE_ALPHA = 0.02          # ~50-sample memory: about 2 s at 28 Hz
+    NOISE_BASELINE_ALPHA = 0.02  # the "where this joint really is" reference
+    NOISE_STILL_DEG_S = 15.0    # above this the joint is moving, not wobbling
+
+    def _track_noise(self, joint, filtered):
+        """Estimate the residual wobble the CONTROLLER sees, in degrees.
+
+        Measured on the FILTERED stream, not the raw one. The deadband exists
+        to stop the controller reacting to whatever noise survives filtering,
+        so the raw figure is the wrong quantity - on real data raw noise was
+        5.2 deg where the filtered residual was 2.3 deg, and sizing a deadband
+        from the former would have doubled it for no reason.
+
+        Nor can it be measured from successive differences here: the filter
+        deliberately correlates neighbouring samples, which collapses the
+        difference-based estimate to near zero (0.24 deg against a true 2.8).
+        So it is measured as the spread around a much slower baseline of the
+        same stream.
+
+        UPDATED ONLY WHILE THE JOINT IS NEARLY STILL. That baseline lags real
+        movement, so during a commanded move the residual reflects the lag
+        rather than the noise, and feeding that in would widen the deadband
+        exactly when the arm is trying to travel - it would stop short of every
+        target it was moving toward. Stillness is also when the deadband
+        actually governs behaviour, so it is the right time to measure.
+        """
+        prev = self._prev_raw.get(joint)
+        self._prev_raw[joint] = filtered
+
+        b = self._baseline.get(joint)
+        ba = self.NOISE_BASELINE_ALPHA
+        self._baseline[joint] = filtered if b is None else \
+            ba * filtered + (1 - ba) * b
+        if b is None or prev is None:
+            return
+
+        speed = abs(filtered - prev) * self._rate_hz
+        if speed > self.NOISE_STILL_DEG_S:
+            return                      # moving: this residual is lag, not noise
+
+        r = filtered - b
+        a = self.NOISE_ALPHA
+        self._d1[joint] = a * r + (1 - a) * self._d1[joint]
+        self._d2[joint] = a * r * r + (1 - a) * self._d2[joint]
+
+    def noise_sd(self, joint=None):
+        """Estimated residual noise in degrees. Dict, or one joint's value."""
+        with self._lock:
+            out = {}
+            for j in self.JOINTS:
+                var = self._d2[j] - self._d1[j] * self._d1[j]
+                out[j] = math.sqrt(max(var, 0.0))
+        return out if joint is None else out.get(joint, 0.0)
 
     # ---- read -------------------------------------------------------------
     def latest(self):
@@ -169,6 +282,7 @@ class PoseReceiver:
             age = (time.monotonic() - self._last_rx) * 1000.0 if self._count else None
             return {"received": self._count, "malformed": self._bad,
                     "frozen_ts": self._stale_ts,
+                    "rate_hz": round(self._rate_hz, 1),
                     "age_ms": None if age is None else round(age, 1)}
 
 
@@ -203,6 +317,13 @@ class SimulatedPoseSource:
 
     def latest(self):
         return dict(self.joints), True
+
+    def noise_sd(self, joint=None):
+        """No measurement, so no measurement noise. Keeps the adaptive
+        deadband at its configured floor in simulation, which is what makes
+        --sim results comparable with the tuning done on real captures."""
+        zero = {j: 0.0 for j in self.joints}
+        return zero if joint is None else 0.0
 
     def stats(self):
         return {"simulated": True}

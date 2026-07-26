@@ -6,7 +6,7 @@ talks straight to the board over UDP and bypasses the control loop entirely, so
 you can verify wiring one relay at a time.
 
     python tools/bench.py
-    python tools/bench.py --host 192.168.137.154
+    python tools/bench.py --host 192.168.137.131
 
 Commands at the prompt:
     arm                 enable stimulation (required before any channel fires)

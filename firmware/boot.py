@@ -25,6 +25,12 @@ def all_off():
 
 
 print("[boot] platform: %s" % platform_name())
+print("[boot] board: %s" % P.BOARD)
+
+# Runs BEFORE all_off(), so a pin map that is wrong for this board fails loudly
+# at boot rather than by driving something unexpected. On the board swap this is
+# what catches an assignment that collided with the battery monitor or landed on
+# a GPIO that no AX22 port brings out.
 P.assert_no_conflicts()
 all_off()
 print("[boot] all channels de-energised (safe state)")

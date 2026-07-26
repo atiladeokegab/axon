@@ -55,9 +55,17 @@ class SafetySupervisor:
         return self.state()
 
     # ---- watchdog ---------------------------------------------------------
-    def note_command(self):
-        """Call on every valid command packet - this pets the watchdog."""
-        self._last_command_ms = ticks_ms()
+    def note_command(self, now=None):
+        """Call on every valid command packet - this pets the watchdog.
+
+        `now` is optional and exists for testability: watchdog_expired() and
+        stim_allowed() already accept an injected clock, and without a matching
+        parameter here the watchdog could only ever be fed from real time. A
+        test that advances a synthetic clock would then see the watchdog expire
+        immediately and every relay open, which looks exactly like a firmware
+        fault and is not one.
+        """
+        self._last_command_ms = ticks_ms() if now is None else now
 
     def watchdog_expired(self, now=None):
         """True if the PC has gone quiet for longer than the timeout.
@@ -82,8 +90,15 @@ class SafetySupervisor:
             return False
         return True
 
-    def clamp_duty(self, duty):
-        """Clamp a requested duty into the safe envelope."""
+    def clamp_duty(self, duty, channel=None):
+        """Clamp a requested duty into the safe envelope.
+
+        `channel` opts into a per-channel ceiling from settings.CHANNEL_DUTY_MAX,
+        which exists so the triggered grip channels may reach 1.0 while every
+        servoed channel stays at DUTY_MAX. Omitting it keeps the strict global
+        ceiling, so a caller that does not know what it is commanding cannot
+        accidentally obtain the higher limit.
+        """
         try:
             d = float(duty)
         except (TypeError, ValueError):
@@ -92,8 +107,25 @@ class SafetySupervisor:
             return 0.0
         if d < 0.0:
             return 0.0
-        if d > self.duty_max:
-            return self.duty_max
+
+        ceiling = self.duty_max
+        if channel is not None:
+            try:
+                from config import settings as _S
+                per = getattr(_S, "CHANNEL_DUTY_MAX", {})
+                # max(), never min(): a per-channel entry may RAISE the ceiling
+                # for a channel we have deliberately exempted, but must never be
+                # able to lower the global limit by being absent or wrong.
+                ceiling = max(ceiling, float(per.get(channel, 0.0)))
+            except Exception:
+                ceiling = self.duty_max
+        # Absolute backstop. Nothing may exceed a fully closed relay, and a
+        # typo in CHANNEL_DUTY_MAX must not become a hardware command.
+        if ceiling > 1.0:
+            ceiling = 1.0
+
+        if d > ceiling:
+            return ceiling
         return d
 
     # ---- introspection ----------------------------------------------------

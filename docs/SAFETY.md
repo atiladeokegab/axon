@@ -13,13 +13,32 @@ the only thing standing between the subject and an unwanted contraction.
 | # | Layer | Survives | Notes |
 |---|-------|----------|-------|
 | 1 | **Subject's in-line kill switch** | everything | Physical switch in the electrode lead, held by the subject. Works if every computer is dead. |
-| 2 | **Hardware e-stop button** (GPIO IRQ) | PC crash, app hang, link loss | Optional but strongly recommended. Normally-closed to GND: a cut wire also kills. |
+| 2 | **Hardware e-stop button** (GPIO9, polled + debounced) | PC crash, app hang, link loss | Strongly recommended. Normally-closed to GND: a cut wire also kills. **Moved from GPIO8 with the Genesis Mini** — GPIO8 is battery sense on that board. |
 | 3 | **Firmware watchdog** (500 ms) | app hang, Wi-Fi drop, unplugged cable | No fresh command → every relay opens. |
 | 4 | **Firmware duty/burst clamps** | buggy or malicious commands | Enforced even on well-formed packets. |
+| 4b | **Same-bank refusal + concurrency cap** | a controller that asks for everything at once | Two channels sharing a constant-current source are never closed together (they are wired as antagonist pairs, which the board already refuses). At most **2** arm channels may be live at once; grip is exempt. |
 | 5 | **Operator `X` e-stop** | nothing else | Convenience only: needs PC + app + link all alive. |
 
 **The controller is the performance layer. The firmware is the safety layer.**
 Nothing in `controller/` is trusted by `firmware/`.
+
+> ### The status LED is not on this list, and that is deliberate
+>
+> The Genesis Mini's on-board NeoPixel (GPIO21) shows disarmed / armed /
+> stimulating / killed. It is an **operator convenience**, not a safeguard:
+>
+> * **A colour is never permission to touch anyone.** Before any contact,
+>   confirm state the authoritative way — the subject's in-line kill switch is
+>   open, and a meter reads COM–NO **open** on every channel.
+> * **A dark or wrong-coloured LED means nothing about the relays.** The driver
+>   is wrapped so it can fail silently rather than raise into the control loop,
+>   which means a failed LED looks exactly like a safe board.
+> * **Nothing reads it.** No control or safety decision depends on it, so it
+>   can neither block stimulation nor permit it.
+>
+> Red-pulsing for "current is flowing" is chosen so the state a bystander most
+> needs to recognise is the one that stands out. Treat it as a prompt to look,
+> never as the answer.
 
 ---
 
