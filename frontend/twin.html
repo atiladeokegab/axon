@@ -1881,16 +1881,24 @@
     }
 
     // null = leave them all plain; a pad name = spotlight that one for setup.
+    // Kept in sync by hand with --accent / --accent-dim in shared/theme.css —
+    // WebGL materials can't read CSS custom properties.
+    const GUIDE_ACCENT = 0x2fbe93;
+    const GUIDE_ACCENT_EMISSIVE = 0x1a6b53;
+
+    let focusedPad = null;   // read by animate() below, to pulse only the spotlighted marker
+
     function highlightPad(pad) {
       // Drives the same value the orbit drag writes to, so the turn is eased by
       // the existing view smoothing rather than snapping.
       const view = pad === null ? null : PAD_PLACEMENT[pad]?.view;
       if (view !== null && view !== undefined) pointerTargetX = view;
 
+      focusedPad = pad;
       for (const [name, marker] of padMarkers) {
         const isFocus = pad === null || name === pad;
-        marker.material.color.set(isFocus && pad !== null ? 0x87f7c7 : 0x8ea19a);
-        marker.material.emissive.set(isFocus && pad !== null ? 0x1f6f57 : 0x1d3b33);
+        marker.material.color.set(isFocus && pad !== null ? GUIDE_ACCENT : 0x8ea19a);
+        marker.material.emissive.set(isFocus && pad !== null ? GUIDE_ACCENT_EMISSIVE : 0x1d3b33);
         marker.material.emissiveIntensity = isFocus && pad !== null ? 1.2 : 0.4;
         marker.material.opacity = isFocus ? 0.95 : 0.22;
       }
@@ -2855,6 +2863,11 @@
           material.emissiveIntensity = pulse;
         });
       });
+
+      if (focusedPad !== null) {
+        const marker = padMarkers.get(focusedPad);
+        if (marker) marker.material.emissiveIntensity = 1.18 + Math.sin(elapsed * 9) * 0.34;
+      }
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
