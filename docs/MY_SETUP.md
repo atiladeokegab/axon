@@ -156,7 +156,7 @@ TENS out A ── COM
 
 **The resistor's free end goes to output terminal B — not back to COM.** Wiring
 it COM→NC shorts it out and does nothing. Full explanation:
-[`docs/WIRING.md`](docs/WIRING.md).
+[`WIRING.md`](WIRING.md).
 
 Keep the TENS output **floating** — never tie either leg to system ground.
 
@@ -580,7 +580,7 @@ Expect `151 checks, 0 failed`.
 | Every deploy file FAILs | Run with `-v` for the real error; USB fallback: `mpremote fs cp -r firmware/. :` |
 | `run.py` connects and arms, but no relay ever fires (bench.py works) | Fixed. The board rejected packets whose sequence number was lower than the last seen, and every tool restarts its counter at 1 — so after a bench session, `run.py` was ignored. Re-deploy `lib/net_udp.py`. |
 | A channel "does nothing" | An active channel **buzzes at ~6.7 Hz**, it does not click or sit closed — `DUTY_MAX` is 0.70, so it is 105 ms on / 45 ms off. Use `bench> click 1 5` for an audible 0.5 s on / 0.5 s off pattern. |
-| `board:KILLED(hardware_estop)` but nobody pressed the button | Relay-coil noise coupling into the e-stop lead (**GPIO9** on this board). Fixed in firmware `2026-07-25.6-estop-noise` (edge interrupt removed, 40 ms debounce). If it recurs, fix it in hardware: **100 nF from GPIO9 to GND**, and route the e-stop lead away from the coil wiring. See [`docs/WIRING.md`](docs/WIRING.md). |
+| `board:KILLED(hardware_estop)` but nobody pressed the button | Relay-coil noise coupling into the e-stop lead (**GPIO9** on this board). Fixed in firmware `2026-07-25.6-estop-noise` (edge interrupt removed, 40 ms debounce). If it recurs, fix it in hardware: **100 nF from GPIO9 to GND**, and route the e-stop lead away from the coil wiring. See [`WIRING.md`](WIRING.md). |
 | `Operations on 2 remote files are not supported` | Fixed. `webrepl_cli.py` treats any argument containing `:` as remote, so a Windows absolute path (`C:\...`) confused it; `deploy_wifi.py` now passes relative paths. Update your copy if you still see this. |
 | Board never joins Wi-Fi | Hotspot must be **2.4 GHz** (Properties → Band) and its **Network name must equal `faisal_network`**, or edit `WIFI_SSID` in `firmware/config/device_secrets.py` and re-push. |
 

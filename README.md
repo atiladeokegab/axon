@@ -11,35 +11,51 @@ channels until the real limb matches. Grip is a triggered power grasp.
 > before connecting anything to anybody. The safety limits are enforced on the
 > microcontroller, deliberately independent of the control software.
 
+![Live Twin — the 3D anatomical twin mirroring the subject's arm, with the camera feed and session flow alongside](demo_lib/live_twin_demo.png)
+
+*Live Twin. The muscle model on the left tracks the subject's real arm from the
+camera on the right; the pads being driven are the ones you can see contracting.*
+
 ---
 
 ## Architecture
 
 ```
-   keyboard (arrows / shift / X)
-            |
-            v
+   keyboard (arrows / G / X)          voice ("bend the elbow")
+            |                                   |
+            v                                   v
    +--------------------------+          +---------------------------+
-   |   PC  (controller/)      |          |  teammate's pose service  |
-   |                          |          |  (vision - not ours)      |
-   |  target joint angles     |          +---------------------------+
+   |   PC  (controller/)      |          |  pose service (axon-main/)|
+   |                          |          |  webcam -> MediaPipe ->   |
+   |  target joint angles     |          |  3D landmarks -> angles   |
    |  PI control + mapping    |<---- 3D joints / angles, UDP :9090 --+
-   |                          |
-   +-----------|--------------+
-               |  duty[8] + grip, UDP :8080
-               v
-   +--------------------------+
-   |  ESP32-S3 (firmware/)    |
-   |  software PWM -> relays  |     <-- INDEPENDENT SAFETY LAYER
-   |  watchdog / duty clamp   |
+   |                          |                        |
+   +-----------|--------------+                        | same angles
+               |  duty[8] + grip, UDP :8080            v
+               v                              +---------------------+
+   +--------------------------+               |  3D twin (browser)  |
+   |  ESP32-S3 (firmware/)    |               |  anatomical arm     |
+   |  software PWM -> relays  |  <-- INDEPENDENT SAFETY LAYER        |
+   |  watchdog / duty clamp   |               +---------------------+
    +-----------|--------------+
                |
         8 relay channels
                v
      2x AUVON AS8016 TENS/EMS  ->  electrodes  ->  muscles  ->  arm moves
                                                                    |
-                                          (observed by the pose service)
+                    the camera sees the new position  <------------+
 ```
+
+**The loop closes through the camera.** Stimulation moves the real arm; the
+webcam sees the new position; MediaPipe turns that into joint angles; the
+controller compares them against the target and adjusts the duty on each
+channel. Nothing in that path knows what the arm was *told* to do — only where
+it actually is. That is what makes it closed-loop rather than a timed sequence.
+
+**The same angle stream drives the simulation.** The 3D anatomical twin in the
+browser is fed from that identical measurement, so what you see on screen is
+the arm's real posture and not a prediction. It is a viewer: closing the tab
+changes nothing, and the twin cannot command the arm.
 
 **Role split.** The PC decides *what the arm should do*. The ESP32 decides
 *what is physically allowed*. The board never trusts the PC: if commands stop,
@@ -70,7 +86,11 @@ are malformed, or ask for too much, it clamps them or opens every relay.
 | `controller/mapping.py` | Joint effort → 8 muscle channels |
 | `controller/pose_api.py` | **Pose ingest API** (contract with teammate) |
 | `controller/test_simulation.py` | Offline checks, no hardware needed |
-| `docs/` | Wiring, API contract, control design, safety, testing |
+| `axon-main/` | **Pose service** — webcam → MediaPipe → joint angles, over WebSocket and UDP |
+| `webapp_demo/` | **The demo site.** Muscle Mapper, Live Twin and Human Control, one FastAPI app |
+| `eleven_labs/` | Live Twin standalone: 3D anatomy, pad placement, conversational coach |
+| `demo_lib/` | Screenshots and demo stills used in this README |
+| `docs/` | Wiring, API contract, control design, safety, testing — [index](docs/README.md) |
 
 ---
 
@@ -256,6 +276,38 @@ Stop with `Q` in the launcher's terminal — closing browser tabs does nothing,
 the browser is only a viewer. If a window was closed abruptly and something
 still holds the camera or a port: `python tools/stop.py`.
 
+### 6. The web app
+
+The demo site is a separate FastAPI app that mounts all three surfaces on one
+port. It manages its own environment with [uv](https://docs.astral.sh/uv/):
+
+```bash
+cd webapp_demo
+copy .env.example .env        # cp on macOS/Linux; then fill in the keys
+uv run uvicorn main:app --reload
+```
+
+Open <http://localhost:8000/>.
+
+| Path | What it is |
+|---|---|
+| `/live-twin` | The 3D anatomical twin, camera preview and guided session (pictured above) |
+| `/human-control` | Launcher for the closed-loop teleoperation session |
+| `/ems-muscle-mapper` | Photo-based pad placement helper |
+
+Pad firing from the web app is off by default and gated behind an environment
+variable, because the conversational coach can trigger it and a misheard
+command should not be able to stimulate anyone:
+
+```bash
+set AXON_PAD_FIRING=1         # Windows; export on macOS/Linux
+uv run uvicorn main:app --reload
+```
+
+Only one process may hold the webcam. Human Control stops the in-browser loop
+before starting the external session and vice versa — if a preview is stuck
+offline, something else still owns the camera.
+
 ### Controls
 
 One axis per key pair, each driving exactly one muscle pair:
@@ -365,19 +417,28 @@ for electrode placement.
 
 ## Documentation
 
-- [`MY_SETUP.md`](MY_SETUP.md) — **copy/paste commands for this exact machine,
-  board and network** (COM ports, board IP, firmware image). Start here day-to-day.
+**[`docs/README.md`](docs/README.md) is the index** — every document, and when
+you'd want it. The ones you'll reach for first:
+
 - [`docs/SAFETY.md`](docs/SAFETY.md) — **read first**; safety layers and procedure
-- [`docs/DEPLOY.md`](docs/DEPLOY.md) — Wi-Fi setup, wireless deploy, 5 V power
+- [`docs/MY_SETUP.md`](docs/MY_SETUP.md) — copy/paste commands for **this** machine,
+  board and network (COM ports, board IP, firmware image). Day-to-day driver.
 - [`docs/WIRING.md`](docs/WIRING.md) — relays, dummy load, jolt fix, electrodes
-- [`docs/POSE_API.md`](docs/POSE_API.md) — the contract for the pose estimator
-- [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — wiring up axon-main's vision feed
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — Wi-Fi setup, wireless deploy, 5 V power
 - [`docs/CONTROL.md`](docs/CONTROL.md) — why PI, tuning, loop timing
+- [`docs/POSE_API.md`](docs/POSE_API.md) — the contract for the pose estimator
 - [`docs/TESTING.md`](docs/TESTING.md) — bring-up order, bench checks
+
+Subproject docs live with their code: [`webapp_demo/`](webapp_demo/README.md),
+[`axon-main/`](axon-main/README.md), [`eleven_labs/`](eleven_labs/README.md).
 
 ## Scope
 
-No intent detection, no EMG, no BCI. Targets come from the keyboard (demo) or
-a scripted exercise trajectory (future clinical app). Vision/pose estimation is
-a teammate's service — we only consume it. Grip is a gross power grasp, not
-individuated fingers.
+No intent detection, no EMG, no BCI. Targets come from the keyboard, from the
+voice coach, or from a scripted exercise trajectory (future clinical app). Grip
+is a gross power grasp, not individuated fingers.
+
+Pose estimation is monocular RGB from a single webcam — no depth sensor, no
+markers on the limb. That is why camera placement dominates everything
+downstream, and why the controller measures its own noise floor rather than
+trusting a fixed deadband.

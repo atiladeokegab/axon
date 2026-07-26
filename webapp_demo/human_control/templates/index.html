@@ -173,9 +173,22 @@
     const $ = (id) => document.getElementById(id);
     let ws = null;
 
-    // launch.py serves its twin here. Kept in one place so it stays in step
-    // with the --frontend-port the launcher is started with.
-    const TWIN_URL = "http://127.0.0.1:8081/twin.html";
+    // launch.py splits the twin across two ports: a plain static server for
+    // twin.html on --frontend-port, and the pose service that actually owns
+    // the camera and the websocket on --http-port. Kept in one place so both
+    // stay in step with the flags the launcher is started with.
+    const TWIN_FRONTEND_PORT = 8081;   // session.py TWIN_PORT
+    const TWIN_API_PORT = 8010;        // session.py POSE_HTTP_PORT
+
+    // The ?ws= override is REQUIRED, not cosmetic. twin.html resolves its
+    // camera stream relative to its own origin, so served from the static
+    // port it asks that port for /camera.mjpeg, gets a 404 and shows
+    // "Preview offline" while the camera is running fine on the API port.
+    // Passing ?ws= makes it derive both the socket and camera.mjpeg from the
+    // API port instead.
+    const TWIN_URL =
+      `http://127.0.0.1:${TWIN_FRONTEND_PORT}/twin.html` +
+      `?ws=${encodeURIComponent(`ws://127.0.0.1:${TWIN_API_PORT}/ws`)}`;
 
     function connect() {
       const proto = location.protocol === "https:" ? "wss" : "ws";

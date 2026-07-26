@@ -180,7 +180,51 @@ def start_pose_service(axon_dir, pose_host, pose_port, http_port, quiet,
                  "service yourself and re-run with --no-pose.")
 
 
-def start_frontend(axon_dir, port, quiet):
+def open_in_browser(url):
+    """Open url, preferring Chrome over whatever Windows calls the default.
+
+    webbrowser.open() honours the OS default, which on a stock Windows box is
+    Edge. The rest of the demo runs in Chrome, and the twin landing in a
+    different browser means a second microphone permission prompt and a second
+    place to look. Falls back to the default browser if Chrome is not found.
+    """
+    import shutil
+    import webbrowser
+
+    candidates = [
+        shutil.which("chrome"),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(
+            r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            try:
+                webbrowser.register(
+                    "chrome", None, webbrowser.BackgroundBrowser(path))
+                return webbrowser.get("chrome").open(url)
+            except Exception:
+                break  # fall through to the default browser
+    return webbrowser.open(url)
+
+
+def twin_page_url(frontend_port, http_port):
+    """URL for twin.html, with the pose service wired in explicitly.
+
+    twin.html is served by a dumb static server on frontend_port, but the
+    camera stream and websocket live on the pose service at http_port. The
+    page resolves "camera.mjpeg" relative to its OWN origin, so without this
+    it asks the static server for a route that does not exist there, gets a
+    404, and reports "Preview offline" while the camera is running perfectly
+    well one port over. Passing ?ws= makes it derive both from http_port.
+    """
+    from urllib.parse import quote
+    ws = quote("ws://127.0.0.1:%d/ws" % http_port, safe="")
+    return "http://127.0.0.1:%d/twin.html?ws=%s" % (frontend_port, ws)
+
+
+def start_frontend(axon_dir, port, quiet, http_port=None):
     """Serve axon-main/frontend so twin.html can be opened in a browser.
 
     It must be served over HTTP, not opened as a file: twin.html fetches the
@@ -217,7 +261,13 @@ def start_frontend(axon_dir, port, quiet):
         kill_tree(proc, "frontend server")
         return None
 
-    print("[launch] 3D twin  ->  http://127.0.0.1:%d/twin.html" % port)
+    # Printed WITH ?ws= so a copy-pasted URL works the same as the one opened
+    # automatically. Without it the page 404s on camera.mjpeg against this
+    # static server and reports the preview offline.
+    if http_port is not None:
+        print("[launch] 3D twin  ->  %s" % twin_page_url(port, http_port))
+    else:
+        print("[launch] 3D twin  ->  http://127.0.0.1:%d/twin.html" % port)
     return proc
 
 
@@ -284,7 +334,8 @@ def main():
 
             if not args.no_frontend:
                 fe_proc = start_frontend(args.axon, args.frontend_port,
-                                         quiet=not args.verbose)
+                                         quiet=not args.verbose,
+                                         http_port=args.http_port)
             print("[launch] camera   ->  http://127.0.0.1:%d/camera.mjpeg"
                   % args.http_port)
             print("[launch] NOTE: pose is only sent while the arm is VISIBLE - "
@@ -297,10 +348,9 @@ def main():
             # Only after the server is confirmed serving, or the browser lands
             # on a dead port and shows a connection error.
             if fe_proc is not None and not args.no_open:
-                import webbrowser
-                twin_url = "http://127.0.0.1:%d/twin.html" % args.frontend_port
-                print("[launch] opening the 3D twin in your browser ...")
-                if not webbrowser.open(twin_url):
+                twin_url = twin_page_url(args.frontend_port, args.http_port)
+                print("[launch] opening the 3D twin in Chrome ...")
+                if not open_in_browser(twin_url):
                     print("[launch] could not open a browser - go to %s"
                           % twin_url)
 
@@ -313,8 +363,8 @@ def main():
             print(" POSE ONLY - the controller is NOT running.")
             print("")
             if fe_proc is not None:
-                print(" WATCH YOUR ARM HERE:  http://127.0.0.1:%d/twin.html"
-                      % args.frontend_port)
+                print(" WATCH YOUR ARM HERE:  %s"
+                      % twin_page_url(args.frontend_port, args.http_port))
             else:
                 print(" (no 3D twin running - you have no view of the arm)")
             print("")
