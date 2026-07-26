@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0e13">
+  <meta name="view-transition" content="same-origin">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
+  <title>Axon — Session Results</title>
+  <style>
+    html, body { overflow: hidden; }
+    body { display: flex; align-items: center; justify-content: center; }
+    .results {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 16px;
+      max-width: 420px;
+      padding: 24px;
+    }
+    .results guide-dot { margin-bottom: 8px; animation: results-in 400ms var(--ease-out) backwards; }
+    .results h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 32px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      animation: results-in 400ms var(--ease-out) 60ms backwards;
+    }
+    .results .recap {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 18px;
+      color: var(--text-2);
+      animation: results-in 400ms var(--ease-out) 120ms backwards;
+    }
+    .results .progress-line {
+      margin: 0;
+      max-width: 38ch;
+      color: var(--text-3);
+      font-size: 14px;
+      line-height: 1.5;
+      animation: results-in 400ms var(--ease-out) 180ms backwards;
+    }
+    .results .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+      animation: results-in 400ms var(--ease-out) 240ms backwards;
+    }
+    .results .actions a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+    @keyframes results-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <main class="results" id="results"></main>
+
+  <script type="module">
+    import "./shared/guide-dot.js";
+
+    const root = document.querySelector("#results");
+    const raw = window.localStorage.getItem("axon_last_session");
+
+    // `last.exercise` comes from twin.html's fixed EXERCISES list, never
+    // free-text user input, so interpolating it below carries no injection
+    // risk.
+    if (!raw) {
+      root.innerHTML = `
+        <guide-dot state="settled" style="--gd-size:48px; --gd-dot:9px;"></guide-dot>
+        <h1>No session yet</h1>
+        <p class="progress-line">Start a session to see your results here.</p>
+        <div class="actions">
+          <a class="flow-primary" href="landing.html">Back to start</a>
+        </div>
+      `;
+    } else {
+      const last = JSON.parse(raw);
+      const count = Number(window.localStorage.getItem("axon_session_count") || "1");
+      root.innerHTML = `
+        <guide-dot state="settled" style="--gd-size:48px; --gd-dot:9px;"></guide-dot>
+        <h1>Session complete</h1>
+        <p class="recap">${last.exercise} — ${last.reps} / ${last.total}</p>
+        <p class="progress-line">Session ${count} of your recovery — every rep re-teaches the motion.</p>
+        <div class="actions">
+          <a class="flow-primary" href="twin.html">Go again</a>
+          <a class="flow-secondary" href="landing.html">Done</a>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
