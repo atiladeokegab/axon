@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0e13">
+  <meta name="view-transition" content="same-origin">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
+  <title>Axon — Motor Recovery</title>
+  <style>
+    html, body { overflow: hidden; }
+    .landing {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      height: 100%;
+    }
+    .landing-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 0 6vw;
+    }
+    .landing-word {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 56px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      animation: landing-in 500ms var(--ease-out) backwards;
+    }
+    .landing-line {
+      margin: 0;
+      max-width: 26ch;
+      font-size: clamp(16px, 1.6vw, 20px);
+      font-weight: 500;
+      color: var(--text-2);
+      line-height: 1.4;
+      animation: landing-in 500ms var(--ease-out) 80ms backwards;
+    }
+    .landing-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      animation: landing-in 500ms var(--ease-out) 160ms backwards;
+    }
+    @keyframes landing-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .landing-visual {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-left: 1px solid var(--line);
+      background: radial-gradient(120% 80% at 50% 50%, #121820 0%, #0a0e13 70%);
+    }
+    @media (max-width: 820px) {
+      .landing { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+      .landing-visual { border-left: none; border-top: 1px solid var(--line); min-height: 200px; }
+      .landing-copy { padding: 6vh 6vw; align-items: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <main class="landing">
+    <section class="landing-copy">
+      <h1 class="landing-word">
+        <guide-dot state="orbiting" style="--gd-size:22px; --gd-dot:8px;"></guide-dot>
+        Axon
+      </h1>
+      <p class="landing-line">Relearn the motion. We'll drive it.</p>
+      <a class="flow-primary landing-cta" href="twin.html">Start a session</a>
+    </section>
+    <section class="landing-visual" aria-hidden="true">
+      <guide-dot state="orbiting" style="--gd-size:min(30vw, 260px); --gd-dot:14px;"></guide-dot>
+    </section>
+  </main>
+
+  <script type="module" src="shared/guide-dot.js"></script>
+</body>
+</html>
