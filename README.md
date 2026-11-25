@@ -1,314 +1,86 @@
-# Closed-Loop FES Arm Controller
+![Axon: closed-loop FES arm controller](docs/assets/banner.png)
 
-Teleoperate a human arm with surface functional electrical stimulation (FES),
-under closed-loop control from an external pose estimate.
+# Axon
 
-An operator presses arrow keys; a PI controller compares the commanded joint
-angles against the arm's measured pose and gates eight muscle-stimulation
-channels until the real limb matches. Grip is a triggered power grasp.
+[![Safety: read first](https://img.shields.io/badge/safety-read%20first-ff8066)](docs/SAFETY.md)
+[![Offline checks: 151](https://img.shields.io/badge/offline%20checks-151-87f7c7)](controller/test_simulation.py)
+[![Firmware: MicroPython](https://img.shields.io/badge/firmware-MicroPython-0b1917)](firmware/)
 
 > **This drives current through a person.** Read [`docs/SAFETY.md`](docs/SAFETY.md)
 > before connecting anything to anybody. The safety limits are enforced on the
 > microcontroller, deliberately independent of the control software.
 
-![Live Twin — the 3D anatomical twin mirroring the subject's arm, with the camera feed and session flow alongside](demo_lib/live_twin_demo.png)
+A muscle driven by a timed stimulation sequence does not know where the limb went. Axon teleoperates a human arm with surface functional electrical stimulation (FES) under closed-loop control from an external pose estimate. An operator presses arrow keys; a PI controller compares the commanded joint angles against the arm's measured pose and gates the stimulation channels until the real limb matches. In the simulated arm, holding a pose for 25 seconds takes **0 relay switches, against 660** for a controller that returns zero at its target.
 
-*Live Twin. The muscle model on the left tracks the subject's real arm from the
-camera on the right; the pads being driven are the ones you can see contracting.*
+There is no intent detection, EMG or BCI: targets come from the keyboard, the voice coach or a scripted exercise. Grip is a gross power grasp, and pose comes from one webcam. It is a demonstrator, not a medical device.
 
----
+## Demo
 
-## Architecture
+![The Live Twin demonstrating an elbow flexion exercise](docs/assets/demo.gif)
 
-```
-   keyboard (arrows / G / X)          voice ("bend the elbow")
-            |                                   |
-            v                                   v
-   +--------------------------+          +---------------------------+
-   |   PC  (controller/)      |          |  pose service (axon-main/)|
-   |                          |          |  webcam -> MediaPipe ->   |
-   |  target joint angles     |          |  3D landmarks -> angles   |
-   |  PI control + mapping    |<---- 3D joints / angles, UDP :9090 --+
-   |                          |                        |
-   +-----------|--------------+                        | same angles
-               |  duty[8] + grip, UDP :8080            v
-               v                              +---------------------+
-   +--------------------------+               |  3D twin (browser)  |
-   |  ESP32-S3 (firmware/)    |               |  anatomical arm     |
-   |  software PWM -> relays  |  <-- INDEPENDENT SAFETY LAYER        |
-   |  watchdog / duty clamp   |               +---------------------+
-   +-----------|--------------+
-               |
-        8 relay channels
-               v
-     2x AUVON AS8016 TENS/EMS  ->  electrodes  ->  muscles  ->  arm moves
-                                                                   |
-                    the camera sees the new position  <------------+
-```
+<sub>The Live Twin web app running locally, playing its own scripted elbow demonstration. No camera, no board and no person: the preview pane is offline. Anatomy: BodyParts3D, © The Database Center for Life Science, CC BY-SA 2.1 Japan, shown here cropped and posed.</sub>
 
-**The loop closes through the camera.** Stimulation moves the real arm; the
-webcam sees the new position; MediaPipe turns that into joint angles; the
-controller compares them against the target and adjusts the duty on each
-channel. Nothing in that path knows what the arm was *told* to do — only where
-it actually is. That is what makes it closed-loop rather than a timed sequence.
+## How it works
 
-**The same angle stream drives the simulation.** The 3D anatomical twin in the
-browser is fed from that identical measurement, so what you see on screen is
-the arm's real posture and not a prediction. It is a viewer: closing the tab
-changes nothing, and the twin cannot command the arm.
+The PC decides *what the arm should do*. The ESP32 decides *what is physically allowed*.
 
-**Role split.** The PC decides *what the arm should do*. The ESP32 decides
-*what is physically allowed*. The board never trusts the PC: if commands stop,
-are malformed, or ask for too much, it clamps them or opens every relay.
+1. **Place the pads.** The guided session shows where each electrode goes on a 3D anatomical arm. Seven muscles are driven over eight channels, and channel 6 is spare. (`webapp_demo/live_twin/`)
 
----
+   ![Placing pads on the 3D arm, step by step](docs/assets/how-pads.gif)
 
-## Repository layout
+   <sub>The real pad steps at twice speed, with no hardware attached.</sub>
 
-| Path | What it is |
-|---|---|
-| `firmware/` | MicroPython for the ESP32-S3 (actuation + safety) |
-| `firmware/config/pins.py` | GPIO map, channel→muscle table, reserved-pin traps |
-| `firmware/config/settings.py` | PWM timing + **safety envelope** |
-| `firmware/lib/stim_channel.py` | One PWM-gated relay channel |
-| `firmware/lib/stim_array.py` | The 8 channels + auto-off keep-alive |
-| `firmware/lib/safety.py` | Arm/disarm, watchdog, duty clamping |
-| `firmware/lib/wifi_manager.py` | Station-mode Wi-Fi + WebREPL |
-| `tools/launch.py` | **One command: pose service + 3D twin + controller** |
-| `tools/stop.py` | Stop leftover processes (frees the camera and ports) |
-| `tools/deploy_wifi.py` | Wireless firmware deploy (no USB) |
-| `tools/bench.py` | Interactive channel tester for hardware bring-up |
-| `tools/calibrate.py` | Per-subject recruitment-curve sweep |
-| `controller/` | PC-side control application |
-| `controller/run.py` | Teleoperation entrypoint |
-| `controller/control_loop.py` | The closed loop |
-| `controller/pid.py` | PI controller (see docs for why not PID) |
-| `controller/mapping.py` | Joint effort → 8 muscle channels |
-| `controller/pose_api.py` | **Pose ingest API** (contract with teammate) |
-| `controller/test_simulation.py` | Offline checks, no hardware needed |
-| `axon-main/` | **Pose service** — webcam → MediaPipe → joint angles, over WebSocket and UDP |
-| `webapp_demo/` | **The demo site.** Muscle Mapper, Live Twin and Human Control, one FastAPI app |
-| `eleven_labs/` | Live Twin standalone: 3D anatomy, pad placement, conversational coach |
-| `demo_lib/` | Screenshots and demo stills used in this README |
-| `docs/` | Wiring, API contract, control design, safety, testing — [index](docs/README.md) |
+2. **Measure the arm.** A webcam feeds MediaPipe, which turns 3D landmarks into joint angles and sends them over UDP. Nothing in that path knows what the arm was told to do, only where it is. (`axon-main/`)
 
----
+3. **Close the loop.** A PI controller runs at 30 Hz and turns the angle error into a duty for each channel. Inside its 3° deadband it stops correcting and holds the duty it has learned. (`controller/control_loop.py`, `controller/pid.py`)
 
-## Quick start
+   ![Simulated elbow angle rising to within the deadband of its target](docs/assets/how-loop.gif)
 
-### 0. Set up the virtual environment (once)
+   <sub>Simulation: the repo's controller driving its own simulated arm to 45°. It settles at 42.1°, inside the 3° deadband.</sub>
 
-All Python commands in this project run inside a venv. From the repository root:
+4. **Limit it on the board.** The firmware clamps duty at 0.70, allows at most 4 s of stimulation before a forced 2 s rest, and opens the relays when commands stop for 500 ms. The limit applies to held poses too, so the arm sags during the rest, and that is intended. (`firmware/lib/safety.py`, `firmware/config/settings.py`)
 
-**Windows (PowerShell)** — use `py`, the Python launcher:
+   ![Simulated relay: four seconds on, two seconds of forced rest, then off after commands stop](docs/assets/how-firmware.gif)
 
-```powershell
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-py -m pip install -r requirements.txt
-```
+   <sub>Simulation: the repo's firmware code on a simulated clock, with no board or relays. Commands stop at 14 s.</sub>
 
-**Windows (cmd.exe):**
+## Results
 
-```cmd
-py -m venv .venv
-.venv\Scripts\activate.bat
-py -m pip install -r requirements.txt
-```
+![Relay switches and ripple for two ways of holding a pose](docs/assets/hold-ripple.png)
 
-**macOS / Linux:**
+Holding a limb up needs a constant muscle torque. Returning zero at the target drops the arm, which fires the controller again, and the cycle repeats; keeping the learned duty ends it. That comparison is the controller on a simulated plant and leaves out the board's 4 s / 2 s limit. Run `controller/test_simulation.py` to repeat the offline checks; the full tables are in [`docs/CONTROL.md`](docs/CONTROL.md).
+
+| Result | Value | Evidence |
+|---|---|---|
+| Relay switches in a 25 s hold | 660 returning zero, **0** holding the duty | SIMULATED |
+| Ripple in the same hold | 6.63° returning zero, **0.00°** holding the duty | SIMULATED |
+| Elbow pose noise, one posture held still, 553 samples | 2.51° raw, **1.06°** filtered with 181 ms step lag | MEASURED |
+| Offline checks | 151 | repeatable without hardware |
+
+The 1.06° row was measured with a median-5 one-euro filter; the current setting is median-9, with 292 ms of lag. Camera setup dominates: repeated captures on one rig gave elbow noise from 2.5° to 10.9° with no code change.
+
+## Screens
+
+| Muscle Mapper | Live Twin | Human Control |
+|---|---|---|
+| ![Muscle Mapper upload page](docs/assets/screen-muscle-mapper.png) | ![Live Twin setup](docs/assets/screen-live-twin.png) | ![Human Control launcher](docs/assets/screen-human-control.png) |
+
+## Installation
+
+The first two commands need only Python and no hardware, and the third needs a webcam and uv; run them from the repository root.
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+python controller/test_simulation.py      # 151 offline checks
+python controller/run.py --sim            # virtual arm, drive it with the keyboard
+python tools/launch.py --no-board         # real webcam pose, nothing stimulated
 ```
 
-Your prompt should now start with `(.venv)`. **Re-activate it in every new
-terminal** — the activate line only, not the `py -m venv` step.
+Pose tracking needs the packages described in [`axon-main/`](axon-main/README.md). The web app manages its own environment with [uv](https://docs.astral.sh/uv/) and Python 3.14: in `webapp_demo/`, copy `.env.example` to `.env`, fill in the keys, run `uv run uvicorn main:app --reload` and open port 8000. Pad firing from it is off by default, because a misheard command should not be able to stimulate anyone. Only one process may hold the webcam.
 
-#### `py` vs `python` on Windows
+To use real hardware, read [`docs/SAFETY.md`](docs/SAFETY.md), then follow [`docs/DEPLOY.md`](docs/DEPLOY.md) to flash, [`docs/WIRING.md`](docs/WIRING.md) to wire and [`docs/TESTING.md`](docs/TESTING.md) to bench-test every channel before a closed-loop run. Stop a session with `Q` in its terminal: closing the browser does nothing, because the twin is only a viewer.
 
-If your machine does not recognise `python`, use **`py`** (the Windows Python
-launcher, installed with Python from python.org). You only strictly need it for
-the `py -m venv` step above: **activating the venv puts `.venv\Scripts` on your
-PATH, so `python` works inside an activated venv even when it fails outside.**
-
-Check which you have:
-
-```powershell
-py --version           # should print a version
-python --version       # may fail on your system - that's fine
-```
-
-Rule of thumb for every command in these docs:
-
-| Situation | Use |
-|---|---|
-| Creating the venv (before activation) | `py -m venv .venv` |
-| Inside an activated venv | `python ...` (works), or `py ...` if you prefer |
-| Venv active but `python` still not found | `.venv\Scripts\python.exe ...` |
-
-Verify after activating:
-
-```powershell
-python -c "import sys; print(sys.prefix)"     # should point inside .venv
-mpremote --version
-py -m esptool version
-```
-
-If `python` errors here, the venv is not actually active — re-run the activate
-line and confirm the prompt shows `(.venv)`.
-
-> If PowerShell blocks activation with an execution-policy error:
-> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-
-### 1. Dry run (no hardware, no estimator)
-
-```bash
-cd controller
-python test_simulation.py     # 151 offline checks
-python run.py --sim           # virtual arm, drive it with the arrow keys
-```
-
-### 2. Flash the board (USB, once only)
-
-With the venv active, from the repository root:
-
-Find your board's port first — it differs per machine and per USB socket:
-
-```bash
-mpremote connect list        # the ESP32 / USB-JTAG / CP210x line is your board
-```
-
-Flash the **standard** `ESP32_GENERIC_S3` MicroPython build (this board is an
-N4R2 with *quad* PSRAM — not `SPIRAM_OCT`, and not the obsolete `FLASH_4M`).
-Then:
-
-```bash
-mpremote fs mkdir :lib
-mpremote fs mkdir :config
-mpremote fs cp -r firmware/. :
-```
-
-The board then joins your hotspot and starts WebREPL. Unplug USB and power it
-from the **5 V pin** — every later update is wireless:
-
-```bash
-python tools/deploy_wifi.py                    # auto-discover
-python tools/deploy_wifi.py --host <board-ip>   # if discovery is blocked
-```
-
-(Auto-discovery needs inbound UDP through your firewall; `--host` always works.
-The board prints its IP at boot.)
-
-See [`docs/DEPLOY.md`](docs/DEPLOY.md).
-
-### 3. Bench-test the hardware
-
-Fire individual channels before any closed-loop run:
-
-```bash
-python tools/bench.py                    # auto-discover
-python tools/bench.py --host <board-ip>  # if discovery is blocked
-```
-
-```
-bench> arm
-bench> pulse 1 0.7 3      # channel 1 at 70% duty for 3 seconds
-bench> timer              # fire the auto-off keep-alive once
-bench> off
-```
-
-### 4. Check the pose feed
-
-Camera setup dominates everything downstream — repeated captures on one rig gave
-elbow noise from 2.5° to 10.9° with no code change. Measure before closing the
-loop on a person. `run.py` binds the pose port, so start the vision side
-**without** the controller:
-
-```bash
-# terminal 1 - vision + 3D twin, pose port left free. Leave it open.
-python tools/launch.py --pose-only
-
-# terminal 2 - subject holds ONE posture still for 20 s
-python tools/pose_noise.py
-```
-
-It saves every capture (angles *and* landmarks) so settings can be re-tested
-with `--replay` instead of asking someone to sit still again, and `--label`
-tags captures so physical setups can be compared. It tells you which of the
-three distinguishable problems you have — broadband noise, tracking dropouts,
-or a bad camera angle — and what to do about each. See `docs/CONTROL.md`.
-
-You do **not** copy its recommended deadband anywhere: the controller measures
-live noise and sizes its own.
-
-### 5. Run for real
-
-**One command brings up the whole pipeline** — pose service, 3D twin and
-controller — and shuts it all down when you quit:
-
-```bash
-python tools/launch.py --no-board             # real pose, nothing stimulated
-python tools/launch.py --host <board-ip>      # full system
-```
-
-Useful variants:
-
-```bash
-python tools/launch.py --sim                      # virtual arm, no hardware at all
-python tools/launch.py --sim-hw --host <board-ip> # virtual arm, REAL relays
-python tools/launch.py --min-visibility 0.7       # stricter landmark confidence
-python tools/launch.py --no-open                  # do not open the twin in a browser
-python tools/launch.py --verbose                  # show the pose service's own log
-```
-
-Or the controller alone, if the pose service is already running:
-
-```bash
-cd controller
-python run.py                         # auto-discover the board
-python run.py --host <board-ip>       # if discovery is blocked
-```
-
-Stop with `Q` in the launcher's terminal — closing browser tabs does nothing,
-the browser is only a viewer. If a window was closed abruptly and something
-still holds the camera or a port: `python tools/stop.py`.
-
-### 6. The web app
-
-The demo site is a separate FastAPI app that mounts all three surfaces on one
-port. It manages its own environment with [uv](https://docs.astral.sh/uv/):
-
-```bash
-cd webapp_demo
-copy .env.example .env        # cp on macOS/Linux; then fill in the keys
-uv run uvicorn main:app --reload
-```
-
-Open <http://localhost:8000/>.
-
-| Path | What it is |
-|---|---|
-| `/live-twin` | The 3D anatomical twin, camera preview and guided session (pictured above) |
-| `/human-control` | Launcher for the closed-loop teleoperation session |
-| `/ems-muscle-mapper` | Photo-based pad placement helper |
-
-Pad firing from the web app is off by default and gated behind an environment
-variable, because the conversational coach can trigger it and a misheard
-command should not be able to stimulate anyone:
-
-```bash
-set AXON_PAD_FIRING=1         # Windows; export on macOS/Linux
-uv run uvicorn main:app --reload
-```
-
-Only one process may hold the webcam. Human Control stops the in-browser loop
-before starting the external session and vice versa — if a preview is stuck
-offline, something else still owns the camera.
-
-### Controls
+<details>
+<summary><strong>Controls and status line</strong></summary>
 
 One axis per key pair, each driving exactly one muscle pair:
 
@@ -322,17 +94,17 @@ One axis per key pair, each driving exactly one muscle pair:
 | `W` | bend the elbow | CH1 biceps |
 | `S` | straighten the elbow | CH2 triceps |
 | `G` | **toggle grip** open/closed — it is `G`, **not Shift** | CH7 finger flexors |
-| `D` | disarm |
-| `X` | **EMERGENCY STOP** (latched; `A` to re-arm) |
-| `?` | show the key list again |
-| `Q` | quit (disarms on exit) |
+| `D` | disarm | — |
+| `X` | **EMERGENCY STOP** (latched; `A` to re-arm) | — |
+| `?` | show the key list again | — |
+| `Q` | quit (disarms on exit) | — |
 
 Grip is `G` because a terminal cannot detect a bare Shift press or a key
 release, so "hold to grip" is not implementable here. `G` toggles instead.
 
 Boot state is **disarmed**. Nothing stimulates until you press `A`.
 
-### Reading the status line
+**Reading the status line**
 
 ```
 [ARM] bd:ok pose:OK e45/60 f10/30 a0/15 g:- CH1:0.70 CH3:0.48
@@ -373,72 +145,27 @@ Two more reasons a key can look dead — both are announced on screen:
   errors under the **3° deadband** — that is what stops the arm buzzing at the
   setpoint. **Press an arrow twice before expecting movement.**
 
----
-
-## Pin map — GPIO → relay → muscle
-
-Board: **Axiometa Genesis Mini v1r2** (ESP32-S3-Mini-1-N4R2). Its 12 usable
-GPIO come out on four AX22 ports; we use 10 of them.
-
-| CH | GPIO | AX22 | Relay module / input | Muscle | Joint · role |
-|----|------|------|----------------------|--------|--------------|
-| 1 | **GPIO4** | P1.IO0 | Module 1 · IN1 | Biceps / brachialis | Elbow flex |
-| 2 | **GPIO5** | P2.IO2 | Module 1 · IN2 | Triceps | Elbow extend |
-| 3 | **GPIO6** | P2.IO1 | Module 1 · IN3 | Anterior deltoid | Shoulder flex |
-| 4 | **GPIO7** | P2.IO0 | Module 1 · IN4 | Posterior deltoid | Shoulder extend |
-| 5 | **GPIO15** | P3.IO2 | Module 2 · IN1 | Middle deltoid | Shoulder abduct (**gravity adducts**) |
-| 6 | **GPIO16** | P3.IO1 | Module 2 · IN2 | *spare — unused* | — |
-| 7 | **GPIO17** | P4.IO1 | Module 2 · IN3 | Finger flexors | Grip close |
-| 8 | **GPIO18** | P4.IO2 | Module 2 · IN4 | Finger extensors | Grip release |
-
-Module 1 drives TENS unit 1, Module 2 drives TENS unit 2. Two extra lines:
-**GPIO2** (P1.IO2) → TIMER keep-alive relay across both units' TIMER buttons,
-and **GPIO9** (P3.IO0) → hardware e-stop button, normally-closed to GND.
-
-The on-board NeoPixel (**GPIO21**) shows firmware state — disarmed, armed,
-stimulating, killed, link lost. Convenience only: it is never read by any
-control or safety decision, and a green light is not permission to touch
-anyone.
-
-> **Ported from a Goouuu ESP32-S3-N16R8.** All eight channels and the timer line
-> kept their GPIO numbers. The e-stop moved **GPIO8 → GPIO9**, because GPIO8 is
-> battery sense on this board. The MicroPython image also changed: this is a
-> quad-PSRAM **N4R2**, so it takes the **standard** `ESP32_GENERIC_S3` build,
-> not `SPIRAM_OCT`.
-
-Full wiring — power, the dummy-load resistor that prevents the turn-on jolt,
-and electrode placement — is in [`docs/WIRING.md`](docs/WIRING.md).
-Source of truth for pins: `firmware/config/pins.py`.
-
-Antagonist pairs are **never co-contracted**. See [`docs/WIRING.md`](docs/WIRING.md)
-for electrode placement.
-
----
+</details>
 
 ## Documentation
 
-**[`docs/README.md`](docs/README.md) is the index** — every document, and when
-you'd want it. The ones you'll reach for first:
+[`docs/README.md`](docs/README.md) is the index. Start with [`docs/SAFETY.md`](docs/SAFETY.md), then [`docs/WIRING.md`](docs/WIRING.md), [`docs/CONTROL.md`](docs/CONTROL.md), [`docs/POSE_API.md`](docs/POSE_API.md) and [`docs/TESTING.md`](docs/TESTING.md). [`docs/MY_SETUP.md`](docs/MY_SETUP.md) holds the commands for one specific machine and board. Subproject docs live with their code in [`webapp_demo/`](webapp_demo/README.md), [`axon-main/`](axon-main/README.md) and [`eleven_labs/`](eleven_labs/README.md).
 
-- [`docs/SAFETY.md`](docs/SAFETY.md) — **read first**; safety layers and procedure
-- [`docs/MY_SETUP.md`](docs/MY_SETUP.md) — copy/paste commands for **this** machine,
-  board and network (COM ports, board IP, firmware image). Day-to-day driver.
-- [`docs/WIRING.md`](docs/WIRING.md) — relays, dummy load, jolt fix, electrodes
-- [`docs/DEPLOY.md`](docs/DEPLOY.md) — Wi-Fi setup, wireless deploy, 5 V power
-- [`docs/CONTROL.md`](docs/CONTROL.md) — why PI, tuning, loop timing
-- [`docs/POSE_API.md`](docs/POSE_API.md) — the contract for the pose estimator
-- [`docs/TESTING.md`](docs/TESTING.md) — bring-up order, bench checks
+## Contact and contributing
 
-Subproject docs live with their code: [`webapp_demo/`](webapp_demo/README.md),
-[`axon-main/`](axon-main/README.md), [`eleven_labs/`](eleven_labs/README.md).
+Built for the Juno x Anthropic Consumer Health Hackathon, 25–26 July 2026, Encode Hub, London, by Jack (hardware), Faisal (hardware), Siona (pad-placement research) and Atilade (software and pipeline). Questions and fixes are welcome as [issues](https://github.com/atiladeokegab/axon/issues) or pull requests.
 
-## Scope
+## Citation
 
-No intent detection, no EMG, no BCI. Targets come from the keyboard, from the
-voice coach, or from a scripted exercise trajectory (future clinical app). Grip
-is a gross power grasp, not individuated fingers.
+```bibtex
+@software{axon2026,
+  title  = {Axon: Closed-Loop FES Arm Controller},
+  author = {Jack and Faisal and Siona and Atilade},
+  year   = {2026},
+  url    = {https://github.com/atiladeokegab/axon}
+}
+```
 
-Pose estimation is monocular RGB from a single webcam — no depth sensor, no
-markers on the limb. That is why camera placement dominates everything
-downstream, and why the controller measures its own noise floor rather than
-trusting a fixed deadband.
+## License
+
+No licence file yet. The anatomical meshes carry their own terms, CC BY-SA 2.1 Japan; see [`THIRD_PARTY_ASSETS.md`](webapp_demo/live_twin/frontend/assets/THIRD_PARTY_ASSETS.md).
