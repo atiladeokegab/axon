@@ -36,9 +36,9 @@ The PC decides *what the arm should do*. The ESP32 decides *what is physically a
 
    ![Simulated elbow angle rising to within the deadband of its target](docs/assets/how-loop.gif)
 
-   <sub>Simulation: the repo's controller driving its own simulated arm to 45°. It settles at 42.1°, inside the 3° deadband.</sub>
+   <sub>Simulation: the repo's controller driving its own simulated arm to 45°. It stops correcting inside the 3° deadband.</sub>
 
-4. **Limit it on the board.** The firmware clamps duty at 0.70, allows at most 4 s of stimulation before a forced 2 s rest, and opens the relays when commands stop for 500 ms. The limit applies to held poses too, so the arm sags during the rest, and that is intended. (`firmware/lib/safety.py`, `firmware/config/settings.py`)
+4. **Limit it on the board.** The firmware clamps duty at 0.70, allows at most 4 s of stimulation before a forced 2 s rest, and opens the relays when commands stop for 500 ms. The limit applies to held poses too, so the arm sags during the rest, and that is intended. Antagonist pairs are never co-contracted. (`firmware/lib/safety.py`, `firmware/config/settings.py`)
 
    ![Simulated relay: four seconds on, two seconds of forced rest, then off after commands stop](docs/assets/how-firmware.gif)
 
@@ -75,9 +75,9 @@ python controller/run.py --sim            # virtual arm, drive it with the keybo
 python tools/launch.py --no-board         # real webcam pose, nothing stimulated
 ```
 
-Pose tracking needs the packages described in [`axon-main/`](axon-main/README.md). The web app manages its own environment with [uv](https://docs.astral.sh/uv/) and Python 3.14: in `webapp_demo/`, copy `.env.example` to `.env`, fill in the keys, run `uv run uvicorn main:app --reload` and open port 8000. Pad firing from it is off by default, because a misheard command should not be able to stimulate anyone. Only one process may hold the webcam.
+For flashing and the hardware tools, create a venv and `python -m pip install -r requirements.txt` (on Windows, `py -m venv .venv`). Pose tracking needs the packages described in [`axon-main/`](axon-main/README.md). The web app manages its own environment with [uv](https://docs.astral.sh/uv/) and Python 3.14: in `webapp_demo/`, copy `.env.example` to `.env`, fill in the keys, run `uv run uvicorn main:app --reload` and open port 8000. Pad firing from it is off by default, because a misheard command should not be able to stimulate anyone. Only one process may hold the webcam.
 
-To use real hardware, read [`docs/SAFETY.md`](docs/SAFETY.md), then follow [`docs/DEPLOY.md`](docs/DEPLOY.md) to flash, [`docs/WIRING.md`](docs/WIRING.md) to wire and [`docs/TESTING.md`](docs/TESTING.md) to bench-test every channel before a closed-loop run. Stop a session with `Q` in its terminal: closing the browser does nothing, because the twin is only a viewer.
+To use real hardware, read [`docs/SAFETY.md`](docs/SAFETY.md), then follow [`docs/DEPLOY.md`](docs/DEPLOY.md) to flash, [`docs/WIRING.md`](docs/WIRING.md) to wire and [`docs/TESTING.md`](docs/TESTING.md) to bench-test every channel before a closed-loop run. Stop a session with `Q` in its terminal: closing the browser does nothing, because the twin is only a viewer. `python tools/stop.py` frees a camera or port left held. The board's status LED is a convenience: a green light is not permission to touch anyone.
 
 <details>
 <summary><strong>Controls and status line</strong></summary>
@@ -149,7 +149,7 @@ Two more reasons a key can look dead — both are announced on screen:
 
 ## Documentation
 
-[`docs/README.md`](docs/README.md) is the index. Start with [`docs/SAFETY.md`](docs/SAFETY.md), then [`docs/WIRING.md`](docs/WIRING.md), [`docs/CONTROL.md`](docs/CONTROL.md), [`docs/POSE_API.md`](docs/POSE_API.md) and [`docs/TESTING.md`](docs/TESTING.md). [`docs/MY_SETUP.md`](docs/MY_SETUP.md) holds the commands for one specific machine and board. Subproject docs live with their code in [`webapp_demo/`](webapp_demo/README.md), [`axon-main/`](axon-main/README.md) and [`eleven_labs/`](eleven_labs/README.md).
+[`docs/README.md`](docs/README.md) is the index. Start with [`docs/SAFETY.md`](docs/SAFETY.md), then [`docs/WIRING.md`](docs/WIRING.md), [`docs/CONTROL.md`](docs/CONTROL.md), [`docs/POSE_API.md`](docs/POSE_API.md) and [`docs/TESTING.md`](docs/TESTING.md). The [previous README](https://github.com/atiladeokegab/axon/blob/baa453b3e70a7385699b1997110ea632ec556f13/README.md) has the longer setup, flashing and launch notes, the repository layout and the pin map. [`docs/MY_SETUP.md`](docs/MY_SETUP.md) holds the commands for one specific machine and board. Subproject docs live with their code in [`webapp_demo/`](webapp_demo/README.md), [`axon-main/`](axon-main/README.md) and [`eleven_labs/`](eleven_labs/README.md).
 
 ## Contact and contributing
 
